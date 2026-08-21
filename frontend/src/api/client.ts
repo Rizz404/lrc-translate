@@ -1,6 +1,8 @@
 import type {
+  AlignTrackResponse,
   Line,
   RomanizeResponse,
+  ScrapeTrackResponse,
   SearchResult,
   Track,
   TrackSummary,
@@ -73,5 +75,19 @@ export const api = {
 
   romanizeTrack(trackId: string): Promise<RomanizeResponse> {
     return request(`/tracks/${trackId}/romanize`, { method: "POST" });
+  },
+
+  scrapeTrack(trackId: string, sourceUrl: string): Promise<ScrapeTrackResponse> {
+    return request(`/tracks/${trackId}/scrape`, {
+      method: "POST",
+      body: JSON.stringify({ source_url: sourceUrl }),
+    });
+  },
+
+  alignTrack(trackId: string, scrapeSourceId: number): Promise<AlignTrackResponse> {
+    return request(`/tracks/${trackId}/align`, {
+      method: "POST",
+      body: JSON.stringify({ scrape_source_id: scrapeSourceId }),
+    });
   },
 };

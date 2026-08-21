@@ -32,8 +32,17 @@ Berjalan di `http://localhost:5173`.
 - [x] Milestone 0 — Scaffolding (Go module + Vite React TS project)
 - [x] Milestone 1 — Cari lagu → import LRC dari LRCLIB → edit manual per baris → copy/download `.lrc`
 - [x] Milestone 2 — Terjemahan MT (LibreTranslate) + romanisasi (kagome/gojp-kana) + tag `method` + revert
-- [ ] Milestone 3 — Scraping + alignment heuristik (Cabang C)
+- [x] Milestone 3 — Scraping + alignment heuristik (Cabang C)
 - [ ] Milestone 4 — AI/LLM (Cabang B) — ditunda, skema data sudah siap (`method: "ai"`)
+
+### Catatan desain Milestone 3 (scraping)
+
+Rencana awal (`plan.md`) menyontohkan auto-scrape dari database lirik seperti Fandom Wiki. Saat implementasi, kandidat-kandidat itu ternyata tidak bisa dipakai:
+- **lyricstranslate.com** — robots.txt-nya eksplisit melarang bot AI (`anthropic-ai`, `Claude-Web`, `ClaudeBot`, dll)
+- **Fandom** — diproteksi Cloudflare, bahkan `robots.txt`-nya sendiri gagal diakses
+- **Genius** — diblokir oleh tool fetch yang dipakai
+
+Karena itu, desainnya diubah: **user sendiri yang paste URL** halaman yang sudah berisi terjemahan (bukan auto-crawl database pihak ketiga), dan backend melakukan **cek robots.txt otomatis** untuk URL manapun sebelum scrape — kalau situsnya melarang, request ditolak dengan pesan jelas. Ekstraksi teksnya generik (readability-style: ambil teks dari elemen blok, buang nav/header/footer/script/style), bukan parser khusus 1 situs, supaya bekerja untuk URL apa pun yang user berikan. Lihat `backend/internal/scrape/scrape.go` untuk detail & alasan lengkapnya.
 
 ## ⚠️ LibreTranslate: instance publik sekarang butuh API key
 

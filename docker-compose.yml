@@ -1,0 +1,21 @@
+# Optional: self-host LibreTranslate to avoid the public instance's rate
+# limits (see plan-extended.md "Handling LibreTranslate rate-limit/downtime").
+#
+# Usage:
+#   docker compose up -d
+#   # then in backend/.env: LIBRETRANSLATE_URL=http://localhost:5000
+#
+# First run downloads language models (can take a while, needs several GB
+# of disk). Not required for Milestone 1; only needed once Milestone 2
+# (translate) hits rate limits on the public instance.
+services:
+  libretranslate:
+    image: libretranslate/libretranslate
+    ports:
+      - "5000:5000"
+    volumes:
+      - libretranslate-data:/home/libretranslate/.local/share
+    restart: unless-stopped
+
+volumes:
+  libretranslate-data:

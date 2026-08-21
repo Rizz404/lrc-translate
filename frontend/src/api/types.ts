@@ -72,3 +72,13 @@ export interface TranslateResponse {
 export interface RomanizeResponse {
   lines: Line[];
 }
+
+export interface ScrapeTrackResponse {
+  scrape_source_id: number;
+  source_url: string;
+  raw_text: string;
+}
+
+export interface AlignTrackResponse {
+  lines: Line[];
+}

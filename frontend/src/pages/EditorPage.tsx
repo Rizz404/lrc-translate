@@ -8,6 +8,7 @@ import { LineRow } from "../components/LineRow";
 import { CopyDownloadBar } from "../components/CopyDownloadBar";
 import { TranslatePanel } from "../components/TranslatePanel";
 import { RomanizeButton } from "../components/RomanizeButton";
+import { ScrapePanel } from "../components/ScrapePanel";
 
 interface Props {
   trackId: string;
@@ -68,6 +69,10 @@ export function EditorPage({ trackId, onBack }: Props) {
         <div className="h-6 w-px bg-slate-800" />
         {track.language === "ja" && <RomanizeButton trackId={track.id} />}
         <TranslatePanel trackId={track.id} />
+      </div>
+
+      <div className="mt-4">
+        <ScrapePanel trackId={track.id} />
       </div>
 
       <div className="mt-5 flex flex-col gap-2">
