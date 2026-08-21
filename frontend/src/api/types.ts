@@ -75,8 +75,9 @@ export interface RomanizeResponse {
 
 export interface ScrapeTrackResponse {
   scrape_source_id: number;
-  source_url: string;
+  resolved_url: string;
   raw_text: string;
+  auto_discovered: boolean;
 }
 
 export interface AlignTrackResponse {

@@ -42,7 +42,9 @@ Rencana awal (`plan.md`) menyontohkan auto-scrape dari database lirik seperti Fa
 - **Fandom** — diproteksi Cloudflare, bahkan `robots.txt`-nya sendiri gagal diakses
 - **Genius** — diblokir oleh tool fetch yang dipakai
 
-Karena itu, desainnya diubah: **user sendiri yang paste URL** halaman yang sudah berisi terjemahan (bukan auto-crawl database pihak ketiga), dan backend melakukan **cek robots.txt otomatis** untuk URL manapun sebelum scrape — kalau situsnya melarang, request ditolak dengan pesan jelas. Ekstraksi teksnya generik (readability-style: ambil teks dari elemen blok, buang nav/header/footer/script/style), bukan parser khusus 1 situs, supaya bekerja untuk URL apa pun yang user berikan. Lihat `backend/internal/scrape/scrape.go` untuk detail & alasan lengkapnya.
+Karena itu backend melakukan **cek robots.txt otomatis** untuk URL manapun sebelum scrape (`backend/internal/scrape/scrape.go`) — kalau situsnya melarang, request ditolak dengan pesan jelas. Ekstraksi tekstnya generik (readability-style: ambil teks dari elemen blok, buang nav/header/footer/script/style) untuk URL sembarang.
+
+**utatime.com** kemudian ditambahkan sebagai sumber khusus (`backend/internal/scrape/utatime.go`) karena strukturnya sangat cocok: tiap halaman lirik punya blok `#Original` dan `#Translations` dengan baris `<span class="line-text">` yang sudah sejajar 1:1 per bahasa — parser presisi dipakai otomatis begitu URL-nya dikenali dari domain `utatime.com`. Tapi search API resmi mereka (`/music-api/site/v1/search`) dan sitemap-nya diproteksi Cloudflare bot-challenge, dan robots.txt-nya sendiri (walau permisif untuk `*`) ternyata dibarengi rate-limit agresif — beberapa kali fetch berturut-turut saat riset langsung kena 403 sementara. Karena itu discovery-nya **tebak URL dari judul+artist dulu (best-effort, sering meleset khususnya untuk nama artis Jepang yang di-romanisasi beda dari LRCLIB), fallback ke paste link manual kalau tebakannya gagal** — lihat tombol "Cari otomatis (utatime.com)" di `ScrapePanel.tsx`.
 
 ## ⚠️ LibreTranslate: instance publik sekarang butuh API key
 

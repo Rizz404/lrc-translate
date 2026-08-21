@@ -77,10 +77,11 @@ export const api = {
     return request(`/tracks/${trackId}/romanize`, { method: "POST" });
   },
 
-  scrapeTrack(trackId: string, sourceUrl: string): Promise<ScrapeTrackResponse> {
+  /** Omit sourceUrl to try auto-discovering a utatime.com page first. */
+  scrapeTrack(trackId: string, sourceUrl?: string): Promise<ScrapeTrackResponse> {
     return request(`/tracks/${trackId}/scrape`, {
       method: "POST",
-      body: JSON.stringify({ source_url: sourceUrl }),
+      body: sourceUrl ? JSON.stringify({ source_url: sourceUrl }) : undefined,
     });
   },
 
