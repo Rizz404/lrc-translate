@@ -7,18 +7,34 @@
 // line-aligned by the site itself, no heuristic guessing needed on their
 // side. See parseUtatimeHTML.
 //
-// URL discovery is the hard part. utatime.com's own search
-// (SearchConfig.endpoint = /music-api/site/v1/search) and its sitemap paths
-// sit behind a Cloudflare bot challenge that a plain HTTP client can't pass,
-// and during development this repo's own probing traffic got rate-limited
-// (transient 403s) after roughly a dozen requests in a couple of minutes —
-// so this package deliberately tries only a couple of guessed URLs and
-// leaves the rest to the "paste the URL yourself" fallback already in
-// scrape_handler.go, rather than hammering the site with more attempts.
+// URL discovery used to be the hard part: naively guessing a WordPress-style
+// slug from our own stored artist/title metadata often misses, because
+// utatime.com's slugs are frequently a Japanese-reading romanization we have
+// no reliable way to reproduce (e.g. artist "TUYU" -> slug "tsuyu") — see
+// slugify. The fix is to not guess at all: utatime.com's own site search API
+// (/music-api/site/v1/search, the same endpoint the search box at
+// https://www.utatime.com/global/#search calls) turns out to be reachable
+// with a plain HTTP client and returns a JSON payload with an HTML fragment
+// of results — no Cloudflare bot challenge in the way, as earlier probing
+// during development had assumed. So this package now searches for
+// "<artist> <title>" and takes the first song result, rather than guessing.
+//
+// One wrinkle: search results link to the Japanese-first page
+// (https://www.utatime.com/lyrics/<artist>/<title>/), which has no
+// #Translations/#Romaji tabs — those only exist on the "global" edition at
+// https://www.utatime.com/global/lyrics/<artist>/<title>/. See
+// toUtatimeGlobalURL, which rewrites one into the other.
+//
+// This still isn't hammered: one search request plus one page fetch per
+// discovery call. The old guessed-slug URL is kept as a fallback candidate
+// (tried after the search result, or alone if the search itself errors) in
+// case the search endpoint is ever unreachable — not because it's expected
+// to out-guess a real search.
 package scrape
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"net/url"
 	"regexp"
@@ -64,18 +80,112 @@ func guessUtatimeURLs(artist, title string) []string {
 	}
 }
 
-// TryAutoDiscoverUtatime guesses at a utatime.com URL for artist/title,
-// fetches the first guess that resolves to a real lyrics page, and returns
-// its resolved URL plus extracted translation/romanized text. Callers should
-// treat any error here as "auto-discovery failed" and fall back to asking
-// the user for the page URL directly — not as a reason to retry more guesses.
+// utatimeSearchEndpoint is utatime.com's own site search API — the same one
+// the search box at https://www.utatime.com/global/#search calls.
+const utatimeSearchEndpoint = "https://www.utatime.com/music-api/site/v1/search"
+
+// utatimeSearchResponse is the shape of utatimeSearchEndpoint's JSON body:
+// not structured search results, just a rendered HTML fragment (the same
+// markup the site's own JS drops into the page), which parseUtatimeSearchHTML
+// picks apart.
+type utatimeSearchResponse struct {
+	HTML string `json:"html"`
+}
+
+// toUtatimeGlobalURL rewrites a utatime.com lyric URL to use its "/global/"
+// path segment. Search results link to the Japanese-first page (e.g.
+// https://www.utatime.com/lyrics/kessoku-band/seiza-ni-naretara/), which has
+// no #Translations/#Romaji tabs; the same lyrics live with those tabs added
+// at https://www.utatime.com/global/lyrics/kessoku-band/seiza-ni-naretara/.
+// URLs that already have a "/global/" segment (or don't match the expected
+// "/lyrics/" shape at all) are returned unchanged.
+func toUtatimeGlobalURL(rawURL string) string {
+	if strings.Contains(rawURL, "/global/") {
+		return rawURL
+	}
+	const marker = "/lyrics/"
+	i := strings.Index(rawURL, marker)
+	if i < 0 {
+		return rawURL
+	}
+	return rawURL[:i] + "/global" + rawURL[i:]
+}
+
+// parseUtatimeSearchHTML picks the first song result out of
+// utatimeSearchResponse.HTML and returns its lyric page URL (rewritten to
+// the "/global/" edition — see toUtatimeGlobalURL). utatime.com's search
+// results page groups results into sections (songs, tie-ins, lyricists,
+// ...); only "曲" (songs) results carry the "search-result-lyric" class,
+// which is what distinguishes an actual lyric page link from e.g. an anime
+// series or lyricist page that happened to match the query text.
+func parseUtatimeSearchHTML(fragmentHTML string) (string, error) {
+	doc, err := goquery.NewDocumentFromReader(strings.NewReader(fragmentHTML))
+	if err != nil {
+		return "", fmt.Errorf("parse search result HTML: %w", err)
+	}
+
+	href, ok := doc.Find("a.search-result-lyric").First().Attr("href")
+	if !ok || href == "" {
+		return "", fmt.Errorf("no song result found")
+	}
+
+	return toUtatimeGlobalURL(href), nil
+}
+
+// searchUtatimeLyricURL queries utatime.com's own search for "<artist>
+// <title>" and returns the resolved lyric page URL of the first song
+// result. Callers should treat any error as "no result", not as a reason to
+// retry with a different query — see the package doc comment on why this
+// package doesn't hammer the endpoint.
+func searchUtatimeLyricURL(ctx context.Context, artist, title string) (string, error) {
+	query := strings.TrimSpace(artist + " " + title)
+	if query == "" {
+		return "", fmt.Errorf("artist/title is empty, nothing to search for")
+	}
+
+	endpoint := utatimeSearchEndpoint + "?q=" + url.QueryEscape(query)
+	target, parseErr := url.Parse(endpoint)
+	if parseErr != nil {
+		return "", parseErr
+	}
+
+	if allowed, robotsErr := checkRobots(ctx, target); robotsErr == nil && !allowed {
+		return "", ErrDisallowedByRobots
+	}
+
+	body, err := fetch(ctx, endpoint)
+	if err != nil {
+		return "", err
+	}
+
+	var parsed utatimeSearchResponse
+	if err := json.Unmarshal([]byte(body), &parsed); err != nil {
+		return "", fmt.Errorf("parse search response: %w", err)
+	}
+
+	return parseUtatimeSearchHTML(parsed.HTML)
+}
+
+// TryAutoDiscoverUtatime searches utatime.com for artist/title (see
+// searchUtatimeLyricURL), falling back to a guessed slug URL if the search
+// itself fails, fetches the first candidate that resolves to a real lyrics
+// page, and returns its resolved URL plus extracted translation/romanized
+// text. Callers should treat any error here as "auto-discovery failed" and
+// fall back to asking the user for the page URL directly — not as a reason
+// to retry more guesses.
 func TryAutoDiscoverUtatime(ctx context.Context, artist, title string) (resolvedURL, translation, romanized string, err error) {
-	candidates := guessUtatimeURLs(artist, title)
+	var candidates []string
+	searchURL, searchErr := searchUtatimeLyricURL(ctx, artist, title)
+	if searchErr == nil {
+		candidates = append(candidates, searchURL)
+	}
+	candidates = append(candidates, guessUtatimeURLs(artist, title)...)
+
 	if len(candidates) == 0 {
 		return "", "", "", fmt.Errorf("artist/title has no usable characters to guess a URL from")
 	}
 
-	var lastErr error
+	lastErr := searchErr
 	for _, candidate := range candidates {
 		target, parseErr := url.Parse(candidate)
 		if parseErr != nil {

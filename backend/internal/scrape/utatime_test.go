@@ -108,6 +108,71 @@ func TestParseUtatimeHTML_ErrorsWithoutTranslationsBlock(t *testing.T) {
 	}
 }
 
+func TestToUtatimeGlobalURL(t *testing.T) {
+	cases := map[string]string{
+		"https://www.utatime.com/lyrics/kessoku-band/seiza-ni-naretara/":         "https://www.utatime.com/global/lyrics/kessoku-band/seiza-ni-naretara/",
+		"https://www.utatime.com/global/lyrics/kessoku-band/seiza-ni-naretara/": "https://www.utatime.com/global/lyrics/kessoku-band/seiza-ni-naretara/", // already global: unchanged
+		"https://www.utatime.com/series/some-anime-theme-songs/":                "https://www.utatime.com/series/some-anime-theme-songs/",                // not a /lyrics/ URL: unchanged
+	}
+	for in, want := range cases {
+		if got := toUtatimeGlobalURL(in); got != want {
+			t.Errorf("toUtatimeGlobalURL(%q) = %q, want %q", in, got, want)
+		}
+	}
+}
+
+// sampleUtatimeSearchHTML is a trimmed-down stand-in for the "html" field of
+// a real /music-api/site/v1/search response: a search-results-meta line
+// followed by result groups ("曲" for songs, "タイアップ" for tie-ins,
+// "作詞者" for lyricists), discovered live against
+// https://www.utatime.com/music-api/site/v1/search?q=... during development.
+// Only "曲" results carry the "search-result-lyric" class.
+const sampleUtatimeSearchHTML = `<div class="search-page-results">
+<div class="search-results-meta">7 results</div>
+<section class="search-group"><h2 class="search-group-title">曲</h2>
+  <div class="search-group-results">
+    <a class="search-result search-result-lyric" href="https://www.utatime.com/lyrics/kessoku-band/seiza-ni-naretara/">
+      <div class="search-result-text"><div class="search-title">星座になれたら</div></div>
+    </a>
+    <a class="search-result search-result-lyric" href="https://www.utatime.com/lyrics/van-de-shop/comedy-na-hero-ni-nareta-nara/">
+      <div class="search-result-text"><div class="search-title">コメディなヒーローになれたなら</div></div>
+    </a>
+  </div>
+</section>
+<section class="search-group"><h2 class="search-group-title">タイアップ</h2>
+  <div class="search-group-results">
+    <a class="search-result search-result-tiein" href="https://www.utatime.com/series/some-anime-theme-songs/">
+      <div class="search-result-text"><div class="search-title">アニメ「なんとか」</div></div>
+    </a>
+  </div>
+</section>
+</div>`
+
+func TestParseUtatimeSearchHTML_PicksFirstSongResult(t *testing.T) {
+	got, err := parseUtatimeSearchHTML(sampleUtatimeSearchHTML)
+	if err != nil {
+		t.Fatalf("parseUtatimeSearchHTML returned error: %v", err)
+	}
+	want := "https://www.utatime.com/global/lyrics/kessoku-band/seiza-ni-naretara/"
+	if got != want {
+		t.Errorf("parseUtatimeSearchHTML = %q, want %q", got, want)
+	}
+}
+
+func TestParseUtatimeSearchHTML_NoSongResult(t *testing.T) {
+	noSongResults := `<div class="search-page-results"><div class="search-results-meta">0 results</div></div>`
+	if _, err := parseUtatimeSearchHTML(noSongResults); err == nil {
+		t.Fatal("expected an error when there's no song result in the search page")
+	}
+
+	// A tie-in-only match (no "search-result-lyric" class) shouldn't be
+	// mistaken for a lyric page either.
+	tieinOnly := `<div class="search-page-results"><a class="search-result search-result-tiein" href="https://www.utatime.com/series/x/"></a></div>`
+	if _, err := parseUtatimeSearchHTML(tieinOnly); err == nil {
+		t.Fatal("expected an error when only a non-lyric result is present")
+	}
+}
+
 func TestParseUtatimeHTML_MissingRomajiIsNotAnError(t *testing.T) {
 	htmlNoRomaji := strings.Replace(sampleUtatimeHTML, `id="Romaji"`, `id="NotRomaji"`, 1)
 
