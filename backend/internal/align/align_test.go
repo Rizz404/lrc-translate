@@ -1,6 +1,7 @@
 package align
 
 import (
+	"fmt"
 	"reflect"
 	"testing"
 )
@@ -69,6 +70,35 @@ func TestAlign_ProportionalFallbackOnMismatch(t *testing.T) {
 	// First original line should map to the first scraped line.
 	if got[0] != "x" {
 		t.Errorf("got[0] = %q, want %q", got[0], "x")
+	}
+}
+
+func TestAlign_ProportionalFallbackSpreadsDuplicatesEvenly(t *testing.T) {
+	// 61 original lines, 56 scraped lines (mirrors the real-world utatime.com
+	// case that motivated proportionalIndex's rounding — see its doc
+	// comment). A naive floor-division mapping bunches both position 0 and
+	// 1 onto scraped index 0 before ever advancing; rounding should not
+	// produce a duplicate in the first few positions.
+	original := make([]string, 61)
+	for i := range original {
+		original[i] = fmt.Sprintf("orig-%d", i)
+	}
+	scraped := make([]string, 56)
+	for i := range scraped {
+		scraped[i] = fmt.Sprintf("scraped-%d", i)
+	}
+
+	got := Align(original, scraped)
+
+	if got[0] == got[1] {
+		t.Errorf("expected no duplicate at the very start of the mapping, got %q twice", got[0])
+	}
+	// Every original line should still get some translation (56 < 61, so
+	// a handful of adjacent duplicates are unavoidable, just not clustered).
+	for i, v := range got {
+		if v == "" {
+			t.Errorf("index %d: expected some fallback text, got empty", i)
+		}
 	}
 }
 

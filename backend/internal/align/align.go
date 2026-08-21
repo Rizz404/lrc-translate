@@ -144,11 +144,7 @@ func alignByBlock(result []string, originalBlocks [][]indexedLine, scrapedBlocks
 				// Block sizes differ within a matched pair of blocks — fall
 				// back to proportional mapping inside this block rather
 				// than leaving trailing lines empty.
-				idx := i * len(scrapedBlock) / len(origBlock)
-				if idx >= len(scrapedBlock) {
-					idx = len(scrapedBlock) - 1
-				}
-				text = scrapedBlock[idx]
+				text = scrapedBlock[proportionalIndex(i, len(origBlock), len(scrapedBlock))]
 			}
 			result[ol.index] = text
 		}
@@ -175,11 +171,26 @@ func alignProportional(result []string, original []string, cleanedFlat []string)
 		if strings.TrimSpace(l) == "" {
 			continue
 		}
-		idx := seen * len(cleanedFlat) / nonEmptyCount
-		if idx >= len(cleanedFlat) {
-			idx = len(cleanedFlat) - 1
-		}
-		result[i] = cleanedFlat[idx]
+		result[i] = cleanedFlat[proportionalIndex(seen, nonEmptyCount, len(cleanedFlat))]
 		seen++
 	}
+}
+
+// proportionalIndex maps position pos (0-based, out of fromCount total
+// positions) onto a 0-based index into a range of toCount items, rounding
+// to the nearest index instead of flooring.
+//
+// Flooring (pos*toCount/fromCount) systematically bunches duplicate/skipped
+// mappings at the start of the range whenever toCount < fromCount (integer
+// division delays the first increment) — e.g. mapping 61 original lines
+// onto 56 scraped lines would floor-map both position 0 and 1 to scraped
+// index 0 before ever advancing, even though the "fair" stretch is closer
+// to one duplicate every ~11 lines. Rounding to the nearest index spreads
+// that unavoidable compression evenly across the whole line instead.
+func proportionalIndex(pos, fromCount, toCount int) int {
+	idx := (pos*toCount + fromCount/2) / fromCount
+	if idx >= toCount {
+		idx = toCount - 1
+	}
+	return idx
 }
