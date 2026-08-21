@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useMutation } from "@tanstack/react-query";
 import { useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "motion/react";
@@ -7,6 +7,9 @@ import type { SearchResult } from "../api/types";
 import { api } from "../api/client";
 import { SongCandidateList } from "../components/SongCandidateList";
 
+const SEARCH_DEBOUNCE_MS = 400;
+const MIN_QUERY_LENGTH = 2;
+
 export function SearchPage() {
   const navigate = useNavigate();
   const [title, setTitle] = useState("");
@@ -14,9 +17,26 @@ export function SearchPage() {
   const [importingId, setImportingId] = useState<number | null>(null);
 
   const searchMutation = useMutation({
-    mutationFn: () => api.search(title),
+    mutationFn: (query: string) => api.search(query),
     onSuccess: setResults,
   });
+  const searchMutationRef = useRef(searchMutation);
+  searchMutationRef.current = searchMutation;
+
+  // Auto-search as the user types, debounced so we don't hit the API on every keystroke.
+  useEffect(() => {
+    const query = title.trim();
+    if (query.length < MIN_QUERY_LENGTH) {
+      setResults(null);
+      return;
+    }
+
+    const timer = setTimeout(() => {
+      searchMutationRef.current.mutate(query);
+    }, SEARCH_DEBOUNCE_MS);
+
+    return () => clearTimeout(timer);
+  }, [title]);
 
   const importMutation = useMutation({
     mutationFn: (lrclibId: number) => api.importTrack(lrclibId),
@@ -54,7 +74,11 @@ export function SearchPage() {
         transition={{ duration: 0.4, delay: 0.1 }}
         onSubmit={(e) => {
           e.preventDefault();
-          searchMutation.mutate();
+          // Enter triggers an immediate search, bypassing the debounce.
+          const query = title.trim();
+          if (query.length >= MIN_QUERY_LENGTH) {
+            searchMutation.mutate(query);
+          }
         }}
         className="group relative w-full"
       >
@@ -64,19 +88,11 @@ export function SearchPage() {
           placeholder="Cari judul lagu…"
           value={title}
           onChange={(e) => setTitle(e.target.value)}
-          className="w-full rounded-2xl border border-slate-800 bg-slate-900/70 py-4 pr-32 pl-12 text-base text-slate-100 shadow-lg shadow-black/20 outline-none backdrop-blur transition-all placeholder:text-slate-500 focus:border-violet-500/60 focus:ring-4 focus:ring-violet-500/15"
+          className="w-full rounded-2xl border border-slate-800 bg-slate-900/70 py-4 pr-12 pl-12 text-base text-slate-100 shadow-lg shadow-black/20 outline-none backdrop-blur transition-all placeholder:text-slate-500 focus:border-violet-500/60 focus:ring-4 focus:ring-violet-500/15"
         />
-        <button
-          type="submit"
-          disabled={searchMutation.isPending || !title.trim()}
-          className="absolute top-1/2 right-2 -translate-y-1/2 rounded-xl bg-violet-600 px-4 py-2.5 text-sm font-medium text-white shadow-md shadow-violet-600/30 transition-all hover:bg-violet-500 active:scale-95 disabled:cursor-not-allowed disabled:bg-slate-700 disabled:text-slate-400 disabled:shadow-none"
-        >
-          {searchMutation.isPending ? (
-            <Loader2 className="size-4 animate-spin" />
-          ) : (
-            "Cari"
-          )}
-        </button>
+        {searchMutation.isPending && (
+          <Loader2 className="pointer-events-none absolute top-1/2 right-4 size-5 -translate-y-1/2 animate-spin text-violet-400" />
+        )}
       </motion.form>
 
       {searchMutation.isError && (
