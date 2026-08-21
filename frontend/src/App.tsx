@@ -1,34 +1,26 @@
-import { useState } from "react";
+import { Routes, Route, useLocation } from "react-router-dom";
 import { AnimatePresence, motion } from "motion/react";
 import { SearchPage } from "./pages/SearchPage";
 import { EditorPage } from "./pages/EditorPage";
 
 export default function App() {
-  const [trackId, setTrackId] = useState<string | null>(null);
+  const location = useLocation();
+  const isEditor = location.pathname.startsWith("/track/");
 
   return (
     <AnimatePresence mode="wait">
-      {trackId ? (
-        <motion.div
-          key="editor"
-          initial={{ opacity: 0, x: 16 }}
-          animate={{ opacity: 1, x: 0 }}
-          exit={{ opacity: 0, x: -16 }}
-          transition={{ duration: 0.25, ease: "easeOut" }}
-        >
-          <EditorPage trackId={trackId} onBack={() => setTrackId(null)} />
-        </motion.div>
-      ) : (
-        <motion.div
-          key="search"
-          initial={{ opacity: 0, x: -16 }}
-          animate={{ opacity: 1, x: 0 }}
-          exit={{ opacity: 0, x: 16 }}
-          transition={{ duration: 0.25, ease: "easeOut" }}
-        >
-          <SearchPage onImported={setTrackId} />
-        </motion.div>
-      )}
+      <motion.div
+        key={location.pathname}
+        initial={{ opacity: 0, x: isEditor ? 16 : -16 }}
+        animate={{ opacity: 1, x: 0 }}
+        exit={{ opacity: 0, x: isEditor ? -16 : 16 }}
+        transition={{ duration: 0.25, ease: "easeOut" }}
+      >
+        <Routes location={location}>
+          <Route path="/" element={<SearchPage />} />
+          <Route path="/track/:trackId" element={<EditorPage />} />
+        </Routes>
+      </motion.div>
     </AnimatePresence>
   );
 }

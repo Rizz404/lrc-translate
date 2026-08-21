@@ -1,5 +1,6 @@
 import { useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
+import { useNavigate, useParams } from "react-router-dom";
 import { motion } from "motion/react";
 import { ArrowLeft, Loader2 } from "lucide-react";
 import { api } from "../api/client";
@@ -10,15 +11,14 @@ import { TranslatePanel } from "../components/TranslatePanel";
 import { RomanizeButton } from "../components/RomanizeButton";
 import { ScrapePanel } from "../components/ScrapePanel";
 
-interface Props {
-  trackId: string;
-  onBack: () => void;
-}
+export function EditorPage() {
+  const { trackId } = useParams<{ trackId: string }>();
+  const navigate = useNavigate();
 
-export function EditorPage({ trackId, onBack }: Props) {
   const { data: fetchedTrack, isLoading, error } = useQuery({
     queryKey: ["track", trackId],
-    queryFn: () => api.getTrack(trackId),
+    queryFn: () => api.getTrack(trackId!),
+    enabled: !!trackId,
   });
 
   const track = useEditorStore((s) => s.track);
@@ -48,7 +48,7 @@ export function EditorPage({ trackId, onBack }: Props) {
   return (
     <div className="mx-auto min-h-svh max-w-3xl px-4 pt-8 pb-20">
       <button
-        onClick={onBack}
+        onClick={() => navigate("/")}
         className="mb-4 inline-flex items-center gap-1.5 text-sm text-slate-500 transition-colors hover:text-slate-300"
       >
         <ArrowLeft className="size-4" />

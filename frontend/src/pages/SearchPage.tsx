@@ -1,16 +1,14 @@
 import { useState } from "react";
 import { useMutation } from "@tanstack/react-query";
+import { useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "motion/react";
 import { Search, Music2, Loader2 } from "lucide-react";
 import type { SearchResult } from "../api/types";
 import { api } from "../api/client";
 import { SongCandidateList } from "../components/SongCandidateList";
 
-interface Props {
-  onImported: (trackId: string) => void;
-}
-
-export function SearchPage({ onImported }: Props) {
+export function SearchPage() {
+  const navigate = useNavigate();
   const [title, setTitle] = useState("");
   const [results, setResults] = useState<SearchResult[] | null>(null);
   const [importingId, setImportingId] = useState<number | null>(null);
@@ -22,7 +20,7 @@ export function SearchPage({ onImported }: Props) {
 
   const importMutation = useMutation({
     mutationFn: (lrclibId: number) => api.importTrack(lrclibId),
-    onSuccess: (track) => onImported(track.id),
+    onSuccess: (track) => navigate(`/track/${track.id}`),
     onSettled: () => setImportingId(null),
   });
 
