@@ -114,6 +114,7 @@ type ScrapeTrackResponse struct {
 	ScrapeSourceID uint   `json:"scrape_source_id"`
 	ResolvedURL    string `json:"resolved_url"`
 	RawText        string `json:"raw_text"`
+	RawRomanized   string `json:"raw_romanized,omitempty"` // only present for sources that provide one, e.g. utatime.com
 	AutoDiscovered bool   `json:"auto_discovered"`
 }
 

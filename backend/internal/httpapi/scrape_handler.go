@@ -35,15 +35,15 @@ func (s *Server) handleScrapeTrack(c *gin.Context) {
 		}
 	}
 
-	var rawText, resolvedURL string
+	var rawText, rawRomanized, resolvedURL string
 	var err error
 	autoDiscovered := req.SourceURL == ""
 
 	if autoDiscovered {
-		resolvedURL, rawText, err = scrape.TryAutoDiscoverUtatime(c.Request.Context(), track.Artist, track.Title)
+		resolvedURL, rawText, rawRomanized, err = scrape.TryAutoDiscoverUtatime(c.Request.Context(), track.Artist, track.Title)
 	} else {
 		resolvedURL = req.SourceURL
-		rawText, err = scrape.Scrape(c.Request.Context(), resolvedURL)
+		rawText, rawRomanized, err = scrape.Scrape(c.Request.Context(), resolvedURL)
 	}
 	if err != nil {
 		status := http.StatusBadGateway
@@ -62,10 +62,11 @@ func (s *Server) handleScrapeTrack(c *gin.Context) {
 	}
 
 	source := appdb.ScrapeSource{
-		TrackID:   trackID,
-		SourceURL: resolvedURL,
-		RawText:   rawText,
-		FetchedAt: time.Now(),
+		TrackID:      trackID,
+		SourceURL:    resolvedURL,
+		RawText:      rawText,
+		RawRomanized: rawRomanized,
+		FetchedAt:    time.Now(),
 	}
 	if err := s.db.Create(&source).Error; err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
@@ -76,6 +77,7 @@ func (s *Server) handleScrapeTrack(c *gin.Context) {
 		ScrapeSourceID: source.ID,
 		ResolvedURL:    source.SourceURL,
 		RawText:        source.RawText,
+		RawRomanized:   source.RawRomanized,
 		AutoDiscovered: autoDiscovered,
 	})
 }
@@ -112,18 +114,38 @@ func (s *Server) handleAlignTrack(c *gin.Context) {
 	for i, l := range track.Lines {
 		originalTexts[i] = l.Original
 	}
-	scrapedLines := strings.Split(source.RawText, "\n")
 
-	aligned := align.Align(originalTexts, scrapedLines)
+	alignedTranslation := align.Align(originalTexts, strings.Split(source.RawText, "\n"))
+
+	// Romanization is optional (only utatime.com sources have it — see
+	// internal/scrape/utatime.go) and aligned independently: its line
+	// breakdown doesn't necessarily match the translation's.
+	var alignedRomanized []string
+	if source.RawRomanized != "" {
+		alignedRomanized = align.Align(originalTexts, strings.Split(source.RawRomanized, "\n"))
+	}
 
 	resp := AlignTrackResponse{Lines: []LineDTO{}}
-	for i, translation := range aligned {
-		if translation == "" {
+	for i, translation := range alignedTranslation {
+		var romanized string
+		if alignedRomanized != nil {
+			romanized = alignedRomanized[i]
+		}
+		if translation == "" && romanized == "" {
 			continue
 		}
+
 		line := track.Lines[i]
-		line.Translation = translation
-		line.Method = appdb.MethodScrape
+		if translation != "" {
+			line.Translation = translation
+			line.Method = appdb.MethodScrape
+		}
+		if romanized != "" {
+			// UtaTime's own romanization tends to be more accurate than
+			// this app's kagome/gojp-kana pipeline, so it replaces
+			// whatever was there (including a prior auto-generated one).
+			line.Romanized = romanized
+		}
 		line.NeedsReview = true
 		if err := s.db.Save(&line).Error; err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to save aligned line: " + err.Error()})

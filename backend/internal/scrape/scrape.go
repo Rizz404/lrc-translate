@@ -41,13 +41,13 @@ var httpClient = &http.Client{Timeout: 15 * time.Second}
 var ErrDisallowedByRobots = fmt.Errorf("scraping disallowed by the site's robots.txt")
 
 // Scrape fetches rawURL (after checking robots.txt) and returns its
-// extracted translation text, suitable as input to align.Align. Recognizes
-// utatime.com URLs and uses its site-aware parser (utatime.go) instead of
-// the generic readability heuristic.
-func Scrape(ctx context.Context, rawURL string) (string, error) {
+// extracted translation text (suitable as input to align.Align) plus a
+// romanization when the source provides one (currently only utatime.com —
+// see utatime.go; every other site returns romanized == "").
+func Scrape(ctx context.Context, rawURL string) (translation, romanized string, err error) {
 	target, err := url.Parse(rawURL)
 	if err != nil || (target.Scheme != "http" && target.Scheme != "https") {
-		return "", fmt.Errorf("invalid URL %q", rawURL)
+		return "", "", fmt.Errorf("invalid URL %q", rawURL)
 	}
 
 	allowed, err := checkRobots(ctx, target)
@@ -58,18 +58,23 @@ func Scrape(ctx context.Context, rawURL string) (string, error) {
 		allowed = true
 	}
 	if !allowed {
-		return "", ErrDisallowedByRobots
+		return "", "", ErrDisallowedByRobots
 	}
 
 	html, err := fetch(ctx, target.String())
 	if err != nil {
-		return "", err
+		return "", "", err
 	}
 
 	if isUtatimeHost(target.Host) {
 		return parseUtatimeHTML(html)
 	}
-	return extractText(html)
+
+	text, err := extractText(html)
+	if err != nil {
+		return "", "", err
+	}
+	return text, "", nil
 }
 
 func checkRobots(ctx context.Context, target *url.URL) (bool, error) {

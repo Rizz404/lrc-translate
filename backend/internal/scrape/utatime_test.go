@@ -71,34 +71,54 @@ const sampleUtatimeHTML = `
 </body></html>`
 
 func TestParseUtatimeHTML_PrefersEnglish(t *testing.T) {
-	got, err := parseUtatimeHTML(sampleUtatimeHTML)
+	translation, romanized, err := parseUtatimeHTML(sampleUtatimeHTML)
 	if err != nil {
 		t.Fatalf("parseUtatimeHTML returned error: %v", err)
 	}
 
-	want := "Compared child\n\nI already know"
-	if got != want {
-		t.Errorf("got %q, want %q", got, want)
+	wantTranslation := "Compared child\n\nI already know"
+	if translation != wantTranslation {
+		t.Errorf("translation = %q, want %q", translation, wantTranslation)
+	}
+
+	wantRomanized := "Kurabe rarekko"
+	if romanized != wantRomanized {
+		t.Errorf("romanized = %q, want %q", romanized, wantRomanized)
 	}
 }
 
 func TestParseUtatimeHTML_FallsBackWhenNoEnglish(t *testing.T) {
 	htmlNoEnglish := strings.Replace(sampleUtatimeHTML, `id="English"`, `id="Indonesian"`, 1)
 
-	got, err := parseUtatimeHTML(htmlNoEnglish)
+	translation, _, err := parseUtatimeHTML(htmlNoEnglish)
 	if err != nil {
 		t.Fatalf("parseUtatimeHTML returned error: %v", err)
 	}
 	// With no English subtab, the first subtab found (German, in this
 	// fixture) should be used instead of erroring out.
-	if !strings.Contains(got, "Verglichenes Kind") {
-		t.Errorf("expected fallback to first available subtab, got %q", got)
+	if !strings.Contains(translation, "Verglichenes Kind") {
+		t.Errorf("expected fallback to first available subtab, got %q", translation)
 	}
 }
 
 func TestParseUtatimeHTML_ErrorsWithoutTranslationsBlock(t *testing.T) {
-	_, err := parseUtatimeHTML(`<html><body><div class="contents" id="Original"></div></body></html>`)
+	_, _, err := parseUtatimeHTML(`<html><body><div class="contents" id="Original"></div></body></html>`)
 	if err == nil {
 		t.Fatal("expected an error when there's no #Translations block")
+	}
+}
+
+func TestParseUtatimeHTML_MissingRomajiIsNotAnError(t *testing.T) {
+	htmlNoRomaji := strings.Replace(sampleUtatimeHTML, `id="Romaji"`, `id="NotRomaji"`, 1)
+
+	translation, romanized, err := parseUtatimeHTML(htmlNoRomaji)
+	if err != nil {
+		t.Fatalf("parseUtatimeHTML returned error: %v", err)
+	}
+	if translation == "" {
+		t.Error("expected translation to still be extracted")
+	}
+	if romanized != "" {
+		t.Errorf("expected empty romanized when #Romaji is absent, got %q", romanized)
 	}
 }

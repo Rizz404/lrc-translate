@@ -66,13 +66,13 @@ func guessUtatimeURLs(artist, title string) []string {
 
 // TryAutoDiscoverUtatime guesses at a utatime.com URL for artist/title,
 // fetches the first guess that resolves to a real lyrics page, and returns
-// its resolved URL plus extracted translation text. Callers should treat any
-// error here as "auto-discovery failed" and fall back to asking the user for
-// the page URL directly — not as a reason to retry more guesses.
-func TryAutoDiscoverUtatime(ctx context.Context, artist, title string) (resolvedURL, translation string, err error) {
+// its resolved URL plus extracted translation/romanized text. Callers should
+// treat any error here as "auto-discovery failed" and fall back to asking
+// the user for the page URL directly — not as a reason to retry more guesses.
+func TryAutoDiscoverUtatime(ctx context.Context, artist, title string) (resolvedURL, translation, romanized string, err error) {
 	candidates := guessUtatimeURLs(artist, title)
 	if len(candidates) == 0 {
-		return "", "", fmt.Errorf("artist/title has no usable characters to guess a URL from")
+		return "", "", "", fmt.Errorf("artist/title has no usable characters to guess a URL from")
 	}
 
 	var lastErr error
@@ -95,53 +95,73 @@ func TryAutoDiscoverUtatime(ctx context.Context, artist, title string) (resolved
 			continue
 		}
 
-		tl, parseHTMLErr := parseUtatimeHTML(html)
+		tl, rj, parseHTMLErr := parseUtatimeHTML(html)
 		if parseHTMLErr != nil {
 			lastErr = parseHTMLErr
 			continue
 		}
 
-		return candidate, tl, nil
+		return candidate, tl, rj, nil
 	}
 
-	return "", "", fmt.Errorf("couldn't find this song on utatime.com automatically (%v) — paste the page URL instead", lastErr)
+	return "", "", "", fmt.Errorf("couldn't find this song on utatime.com automatically (%v) — paste the page URL instead", lastErr)
 }
 
-// parseUtatimeHTML extracts the translation lines from a utatime.com lyric
-// page: it picks the English subtab under #Translations if present,
-// otherwise the first language subtab available, and reads one line per
-// ".olyrictext .line-text" span. goquery's .Text() already turns a
-// "<br/>"-only span into an empty string, which lines up with align.go's
-// convention of blank lines marking block boundaries.
-func parseUtatimeHTML(html string) (string, error) {
+// parseUtatimeHTML extracts translation and romanization from a utatime.com
+// lyric page.
+//
+// Translation: picks the English subtab under #Translations if present,
+// otherwise the first language subtab available (this mirrors picking the
+// top entry of the page's own "Add Translation" dropdown, since English
+// (UtaTime)'s own official translation is listed first when available).
+// Missing entirely is an error — there's nothing useful to align without it.
+//
+// Romanization: read from #Romaji. UtaTime's own romanization is generally
+// more accurate than this app's own kagome/gojp-kana pipeline (word
+// grouping, sokuon handling, etc.), so when present it's used to replace —
+// not just supplement — the auto-generated one for aligned lines (see
+// scrape_handler.go). Missing is not an error; the app's own romanizer
+// still covers that case.
+//
+// Both read one line per ".olyrictext .line-text" span; goquery's .Text()
+// already turns a "<br/>"-only span into an empty string, which lines up
+// with align.go's convention of blank lines marking block boundaries.
+func parseUtatimeHTML(html string) (translation, romanized string, err error) {
 	doc, err := goquery.NewDocumentFromReader(strings.NewReader(html))
 	if err != nil {
-		return "", fmt.Errorf("parse HTML: %w", err)
+		return "", "", fmt.Errorf("parse HTML: %w", err)
 	}
 
-	var target *goquery.Selection
+	var translationTab *goquery.Selection
 	doc.Find(`#Translations .subcontents`).EachWithBreak(func(_ int, sel *goquery.Selection) bool {
 		id, _ := sel.Attr("id")
-		if target == nil {
-			target = sel // remember the first as a fallback
+		if translationTab == nil {
+			translationTab = sel // remember the first as a fallback
 		}
 		if strings.EqualFold(id, "English") {
-			target = sel
+			translationTab = sel
 			return false // English found, stop looking
 		}
 		return true
 	})
-	if target == nil {
-		return "", fmt.Errorf("no translation tab found on this utatime.com page")
+	if translationTab == nil {
+		return "", "", fmt.Errorf("no translation tab found on this utatime.com page")
 	}
 
+	translationLines := extractOlyrictextLines(translationTab)
+	if len(translationLines) == 0 {
+		return "", "", fmt.Errorf("translation tab found but contained no text")
+	}
+
+	romanized = strings.Join(extractOlyrictextLines(doc.Find("#Romaji").First()), "\n")
+
+	return strings.Join(translationLines, "\n"), romanized, nil
+}
+
+func extractOlyrictextLines(scope *goquery.Selection) []string {
 	var lines []string
-	target.Find(".olyrictext .line-text").Each(func(_ int, sel *goquery.Selection) {
+	scope.Find(".olyrictext .line-text").Each(func(_ int, sel *goquery.Selection) {
 		lines = append(lines, strings.TrimSpace(sel.Text()))
 	})
-	if len(lines) == 0 {
-		return "", fmt.Errorf("translation tab found but contained no text")
-	}
-
-	return strings.Join(lines, "\n"), nil
+	return lines
 }
