@@ -55,6 +55,9 @@ func NewRouter(s *Server, allowedOrigin string) *gin.Engine {
 
 		api.POST("/tracks/:id/translate", s.handleTranslateTrack)
 		api.POST("/tracks/:id/romanize", s.handleRomanizeTrack)
+
+		api.POST("/tracks/:id/scrape", s.handleScrapeTrack)
+		api.POST("/tracks/:id/align", s.handleAlignTrack)
 	}
 
 	return r

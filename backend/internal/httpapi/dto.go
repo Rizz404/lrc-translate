@@ -96,3 +96,30 @@ type TranslateResponse struct {
 type RomanizeResponse struct {
 	Lines []LineDTO `json:"lines"`
 }
+
+// ScrapeTrackRequest is the body of POST /api/tracks/:id/scrape.
+// SourceURL is a page the *user* found and pasted in — this app does not
+// auto-discover or crawl translation sites on its own (see
+// internal/scrape/scrape.go for why).
+type ScrapeTrackRequest struct {
+	SourceURL string `json:"source_url" binding:"required"`
+}
+
+// ScrapeTrackResponse is stage 1 of Cabang C: raw extracted text, not yet
+// aligned to any line.
+type ScrapeTrackResponse struct {
+	ScrapeSourceID uint   `json:"scrape_source_id"`
+	SourceURL      string `json:"source_url"`
+	RawText        string `json:"raw_text"`
+}
+
+// AlignTrackRequest is the body of POST /api/tracks/:id/align.
+type AlignTrackRequest struct {
+	ScrapeSourceID uint `json:"scrape_source_id" binding:"required"`
+}
+
+// AlignTrackResponse is stage 2 of Cabang C: lines updated with the
+// heuristically-aligned translation, all flagged needs_review.
+type AlignTrackResponse struct {
+	Lines []LineDTO `json:"lines"`
+}
