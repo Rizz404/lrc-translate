@@ -29,10 +29,8 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
 }
 
 export const api = {
-  search(title: string, artist: string): Promise<SearchResult[]> {
-    const params = new URLSearchParams();
-    if (title) params.set("title", title);
-    if (artist) params.set("artist", artist);
+  search(title: string): Promise<SearchResult[]> {
+    const params = new URLSearchParams({ title });
     return request(`/search?${params.toString()}`);
   },
 
