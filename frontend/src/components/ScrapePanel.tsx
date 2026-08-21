@@ -119,6 +119,13 @@ export function ScrapePanel({ trackId }: Props) {
                     {scrapeMutation.data.resolved_url}
                   </a>
 
+                  {scrapeMutation.data.raw_romanized && (
+                    <p className="text-xs text-sky-400">
+                      Romanisasi resmi dari situs ini ikut terambil — akan menggantikan romanisasi
+                      otomatis pada baris yang ter-alignment.
+                    </p>
+                  )}
+
                   <div className="rounded-lg border border-slate-800 bg-slate-950/50">
                     <button
                       onClick={() => setShowRaw((v) => !v)}
@@ -141,8 +148,9 @@ export function ScrapePanel({ trackId }: Props) {
               )}
               {alignMutation.isSuccess && (
                 <p className="text-xs text-emerald-400">
-                  {alignMutation.data.lines.length} baris ter-alignment — cek satu-satu, baris
-                  ditandai amber di bawah.
+                  {alignMutation.data.lines.length} baris ter-alignment (terjemahan
+                  {scrapeMutation.data?.raw_romanized ? " + romanisasi" : ""}) — cek satu-satu,
+                  baris ditandai amber di bawah.
                 </p>
               )}
 

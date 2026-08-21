@@ -77,6 +77,7 @@ export interface ScrapeTrackResponse {
   scrape_source_id: number;
   resolved_url: string;
   raw_text: string;
+  raw_romanized?: string;
   auto_discovered: boolean;
 }
 
