@@ -4,6 +4,8 @@ import { api } from "../api/client";
 import { useEditorStore } from "../store/editorStore";
 import { LineRow } from "../components/LineRow";
 import { CopyDownloadBar } from "../components/CopyDownloadBar";
+import { TranslatePanel } from "../components/TranslatePanel";
+import { RomanizeButton } from "../components/RomanizeButton";
 
 interface Props {
   trackId: string;
@@ -38,6 +40,11 @@ export function EditorPage({ trackId, onBack }: Props) {
       </h1>
 
       <CopyDownloadBar track={track} />
+
+      <div className="editor-actions">
+        {track.language === "ja" && <RomanizeButton trackId={track.id} />}
+        <TranslatePanel trackId={track.id} />
+      </div>
 
       <div className="line-list">
         {track.lines.map((line) => (

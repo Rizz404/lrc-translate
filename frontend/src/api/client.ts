@@ -1,4 +1,13 @@
-import type { Line, SearchResult, Track, TrackSummary, UpdateLineRequest } from "./types";
+import type {
+  Line,
+  RomanizeResponse,
+  SearchResult,
+  Track,
+  TrackSummary,
+  TranslateRequest,
+  TranslateResponse,
+  UpdateLineRequest,
+} from "./types";
 
 const BASE_URL = import.meta.env.VITE_API_BASE_URL ?? "http://localhost:8080/api";
 
@@ -51,5 +60,20 @@ export const api = {
       method: "PUT",
       body: JSON.stringify(body),
     });
+  },
+
+  revertLine(trackId: string, lineId: number): Promise<Line> {
+    return request(`/tracks/${trackId}/lines/${lineId}/revert`, { method: "POST" });
+  },
+
+  translateTrack(trackId: string, body: TranslateRequest): Promise<TranslateResponse> {
+    return request(`/tracks/${trackId}/translate`, {
+      method: "POST",
+      body: JSON.stringify(body),
+    });
+  },
+
+  romanizeTrack(trackId: string): Promise<RomanizeResponse> {
+    return request(`/tracks/${trackId}/romanize`, { method: "POST" });
   },
 };

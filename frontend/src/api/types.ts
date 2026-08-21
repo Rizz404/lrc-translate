@@ -54,4 +54,21 @@ export interface UpdateLineRequest {
   original?: string;
   timestamp?: string;
   time_ms?: number;
+  translation?: string;
+}
+
+export interface TranslateRequest {
+  target_lang: string;
+  line_ids?: number[];
+}
+
+export interface TranslateResponse {
+  lines: Line[];
+  cache_hits: number;
+  cache_misses: number;
+  failed?: { line_id: number; error: string }[];
+}
+
+export interface RomanizeResponse {
+  lines: Line[];
 }
