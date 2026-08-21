@@ -98,19 +98,23 @@ type RomanizeResponse struct {
 }
 
 // ScrapeTrackRequest is the body of POST /api/tracks/:id/scrape.
-// SourceURL is a page the *user* found and pasted in — this app does not
-// auto-discover or crawl translation sites on its own (see
-// internal/scrape/scrape.go for why).
+// SourceURL is optional: leave it empty to have the backend try guessing a
+// utatime.com URL from the track's title/artist first (see
+// internal/scrape/utatime.go); if that guess fails, or for any other site,
+// pass the page URL the user found themselves.
 type ScrapeTrackRequest struct {
-	SourceURL string `json:"source_url" binding:"required"`
+	SourceURL string `json:"source_url"`
 }
 
 // ScrapeTrackResponse is stage 1 of Cabang C: raw extracted text, not yet
-// aligned to any line.
+// aligned to any line. ResolvedURL is always populated — it's either the
+// SourceURL the caller passed, or the URL auto-discovery guessed and
+// successfully fetched.
 type ScrapeTrackResponse struct {
 	ScrapeSourceID uint   `json:"scrape_source_id"`
-	SourceURL      string `json:"source_url"`
+	ResolvedURL    string `json:"resolved_url"`
 	RawText        string `json:"raw_text"`
+	AutoDiscovered bool   `json:"auto_discovered"`
 }
 
 // AlignTrackRequest is the body of POST /api/tracks/:id/align.

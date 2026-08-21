@@ -25,17 +25,37 @@ func (s *Server) handleScrapeTrack(c *gin.Context) {
 		return
 	}
 
+	// A body is optional here (empty/omitted means "auto-discover"), unlike
+	// other POST handlers, so only attempt to bind one if it was sent.
 	var req ScrapeTrackRequest
-	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
-		return
+	if c.Request.ContentLength != 0 {
+		if err := c.ShouldBindJSON(&req); err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+			return
+		}
 	}
 
-	rawText, err := scrape.Scrape(c.Request.Context(), req.SourceURL)
+	var rawText, resolvedURL string
+	var err error
+	autoDiscovered := req.SourceURL == ""
+
+	if autoDiscovered {
+		resolvedURL, rawText, err = scrape.TryAutoDiscoverUtatime(c.Request.Context(), track.Artist, track.Title)
+	} else {
+		resolvedURL = req.SourceURL
+		rawText, err = scrape.Scrape(c.Request.Context(), resolvedURL)
+	}
 	if err != nil {
 		status := http.StatusBadGateway
 		if errors.Is(err, scrape.ErrDisallowedByRobots) {
 			status = http.StatusForbidden
+		}
+		if autoDiscovered {
+			// Auto-discovery failing isn't a server error — it's an
+			// expected outcome the frontend should react to by prompting
+			// for a manual URL (see plan-extended.md M3 decision on
+			// utatime.com discovery).
+			status = http.StatusNotFound
 		}
 		c.JSON(status, gin.H{"error": err.Error()})
 		return
@@ -43,7 +63,7 @@ func (s *Server) handleScrapeTrack(c *gin.Context) {
 
 	source := appdb.ScrapeSource{
 		TrackID:   trackID,
-		SourceURL: req.SourceURL,
+		SourceURL: resolvedURL,
 		RawText:   rawText,
 		FetchedAt: time.Now(),
 	}
@@ -54,8 +74,9 @@ func (s *Server) handleScrapeTrack(c *gin.Context) {
 
 	c.JSON(http.StatusOK, ScrapeTrackResponse{
 		ScrapeSourceID: source.ID,
-		SourceURL:      source.SourceURL,
+		ResolvedURL:    source.SourceURL,
 		RawText:        source.RawText,
+		AutoDiscovered: autoDiscovered,
 	})
 }
 

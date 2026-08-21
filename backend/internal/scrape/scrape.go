@@ -11,6 +11,9 @@
 // they already found and chose to use — and still performs its own
 // robots.txt courtesy check against that URL before fetching, so it
 // respects whatever policy the target site (any site) declares.
+//
+// utatime.com (see utatime.go) is the one exception with a site-aware
+// parser and best-effort URL auto-discovery.
 package scrape
 
 import (
@@ -38,8 +41,9 @@ var httpClient = &http.Client{Timeout: 15 * time.Second}
 var ErrDisallowedByRobots = fmt.Errorf("scraping disallowed by the site's robots.txt")
 
 // Scrape fetches rawURL (after checking robots.txt) and returns its
-// extracted readable text, one line per block-level element, suitable as
-// input to align.Align.
+// extracted translation text, suitable as input to align.Align. Recognizes
+// utatime.com URLs and uses its site-aware parser (utatime.go) instead of
+// the generic readability heuristic.
 func Scrape(ctx context.Context, rawURL string) (string, error) {
 	target, err := url.Parse(rawURL)
 	if err != nil || (target.Scheme != "http" && target.Scheme != "https") {
@@ -62,6 +66,9 @@ func Scrape(ctx context.Context, rawURL string) (string, error) {
 		return "", err
 	}
 
+	if isUtatimeHost(target.Host) {
+		return parseUtatimeHTML(html)
+	}
 	return extractText(html)
 }
 
