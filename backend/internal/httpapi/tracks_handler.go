@@ -185,6 +185,18 @@ func (s *Server) handleUpdateLine(c *gin.Context) {
 	if req.TimeMs != nil {
 		line.TimeMs = *req.TimeMs
 	}
+	if req.Translation != nil {
+		// Snapshot the last auto-generated suggestion before overwriting it,
+		// so the user can revert. Only snapshot once: if the line is already
+		// "manual", the existing Suggested* still points at the original
+		// mt/scrape/ai suggestion and must not be clobbered by this edit.
+		if line.Method != appdb.MethodManual {
+			line.SuggestedTranslation = line.Translation
+			line.SuggestedMethod = line.Method
+		}
+		line.Translation = *req.Translation
+		line.Method = appdb.MethodManual
+	}
 
 	if err := s.db.Save(&line).Error; err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})

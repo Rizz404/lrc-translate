@@ -64,10 +64,35 @@ type UpdateTrackRequest struct {
 }
 
 // UpdateLineRequest is the body of PUT /api/tracks/:id/lines/:lineId.
-// Milestone 1 only wires up manual edits to the original lyric text and its
-// timestamp; translation editing (with suggested_* snapshotting) lands in M2.
+// Editing Translation snapshots the line's current Translation/Method into
+// SuggestedTranslation/SuggestedMethod (unless it's already "manual", so a
+// second manual edit doesn't overwrite the original auto-generated
+// suggestion) and sets Method to "manual" — see handleUpdateLine.
 type UpdateLineRequest struct {
-	Original  *string `json:"original"`
-	Timestamp *string `json:"timestamp"` // "[mm:ss.xx]"
-	TimeMs    *int64  `json:"time_ms"`
+	Original    *string `json:"original"`
+	Timestamp   *string `json:"timestamp"` // "[mm:ss.xx]"
+	TimeMs      *int64  `json:"time_ms"`
+	Translation *string `json:"translation"`
+}
+
+// TranslateRequest is the body of POST /api/tracks/:id/translate.
+type TranslateRequest struct {
+	TargetLang string `json:"target_lang" binding:"required"`
+	LineIDs    []uint `json:"line_ids"` // empty = translate all lines
+}
+
+// TranslateResponse reports the outcome of a translate batch.
+type TranslateResponse struct {
+	Lines       []LineDTO `json:"lines"`
+	CacheHits   int       `json:"cache_hits"`
+	CacheMisses int       `json:"cache_misses"`
+	Failed      []struct {
+		LineID uint   `json:"line_id"`
+		Error  string `json:"error"`
+	} `json:"failed,omitempty"`
+}
+
+// RomanizeResponse reports the outcome of a romanize batch.
+type RomanizeResponse struct {
+	Lines []LineDTO `json:"lines"`
 }

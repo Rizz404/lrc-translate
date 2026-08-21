@@ -5,18 +5,22 @@ import (
 	"github.com/gin-gonic/gin"
 	"gorm.io/gorm"
 
+	"lrc-translate/backend/internal/libretranslate"
 	"lrc-translate/backend/internal/lrclib"
+	"lrc-translate/backend/internal/romanize"
 )
 
 // Server holds the dependencies shared by all HTTP handlers.
 type Server struct {
-	db     *gorm.DB
-	lrclib *lrclib.Client
+	db         *gorm.DB
+	lrclib     *lrclib.Client
+	translator *libretranslate.Client
+	romanizer  *romanize.Romanizer
 }
 
 // NewServer builds a Server with its dependencies.
-func NewServer(db *gorm.DB, lrclibClient *lrclib.Client) *Server {
-	return &Server{db: db, lrclib: lrclibClient}
+func NewServer(db *gorm.DB, lrclibClient *lrclib.Client, translator *libretranslate.Client, romanizer *romanize.Romanizer) *Server {
+	return &Server{db: db, lrclib: lrclibClient, translator: translator, romanizer: romanizer}
 }
 
 // NewRouter builds the Gin engine with CORS (restricted to allowedOrigin) and
@@ -47,6 +51,10 @@ func NewRouter(s *Server, allowedOrigin string) *gin.Engine {
 		api.DELETE("/tracks/:id", s.handleDeleteTrack)
 
 		api.PUT("/tracks/:id/lines/:lineId", s.handleUpdateLine)
+		api.POST("/tracks/:id/lines/:lineId/revert", s.handleRevertLine)
+
+		api.POST("/tracks/:id/translate", s.handleTranslateTrack)
+		api.POST("/tracks/:id/romanize", s.handleRomanizeTrack)
 	}
 
 	return r

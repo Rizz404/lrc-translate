@@ -7,7 +7,9 @@ import (
 	"lrc-translate/backend/internal/config"
 	"lrc-translate/backend/internal/db"
 	"lrc-translate/backend/internal/httpapi"
+	"lrc-translate/backend/internal/libretranslate"
 	"lrc-translate/backend/internal/lrclib"
+	"lrc-translate/backend/internal/romanize"
 )
 
 func main() {
@@ -19,7 +21,15 @@ func main() {
 	}
 
 	lrclibClient := lrclib.New(cfg.LRCLIBBaseURL)
-	server := httpapi.NewServer(gdb, lrclibClient)
+	translator := libretranslate.New(cfg.LibreTranslateURL, cfg.LibreTranslateKey)
+
+	log.Println("loading Japanese romanization dictionary…")
+	romanizer, err := romanize.New()
+	if err != nil {
+		log.Fatalf("failed to init romanizer: %v", err)
+	}
+
+	server := httpapi.NewServer(gdb, lrclibClient, translator, romanizer)
 	router := httpapi.NewRouter(server, cfg.AllowedOrigin)
 
 	log.Printf("listening on :%s (db driver=%s dsn=%s)", cfg.Port, cfg.DBDriver, cfg.DBDSN)
