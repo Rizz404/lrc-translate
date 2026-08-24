@@ -49,6 +49,14 @@ services:
   libretranslate:
     image: libretranslate/libretranslate
     restart: unless-stopped
+    # The named volume below is created fresh by Docker with root:root
+    # ownership, but the image runs as a non-root "libretranslate" user by
+    # default — so without this it crash-loops forever on startup with
+    # `PermissionError: [Errno 13] Permission denied:
+    # '/home/libretranslate/.local/share/argos-translate'`. Only affects
+    # this internal service (not published to the host), so running it as
+    # root here is low-risk.
+    user: root
     # Not published to the host on purpose — only `app` needs to reach it,
     # over the internal Docker network as http://libretranslate:5000.
     # Uncomment to also expose it on the host (e.g. for debugging):
@@ -60,6 +68,12 @@ services:
     # and disk usage, e.g. "ja,id,en". Leave unset to load everything.
     environment:
       LT_LOAD_ONLY: ${LT_LOAD_ONLY:-}
+      # LibreTranslate's own worker thread count (default 4 if unset). The
+      # backend now sends up to maxConcurrentTranslations (see
+      # translate_handler.go) requests at once — bump this to match your
+      # host's CPU cores, otherwise those concurrent requests just queue up
+      # inside LibreTranslate instead of actually running in parallel.
+      LT_THREADS: ${LT_THREADS:-8}
 
 volumes:
   app-data:

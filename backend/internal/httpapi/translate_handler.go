@@ -15,10 +15,15 @@ import (
 	appdb "lrc-translate/backend/internal/db"
 )
 
-// Batch translate calls are throttled to avoid bursting a rate-limited
-// LibreTranslate instance (public or self-hosted) — see plan-extended.md
-// "Handling LibreTranslate rate-limit/downtime".
-const maxConcurrentTranslations = 2
+// Batch translate calls are throttled so one big track doesn't hog the
+// LibreTranslate instance. In this deployment LibreTranslate is self-hosted
+// on the internal Docker network (see docker-compose.yml) rather than a
+// shared public/rate-limited endpoint, so this can be considerably higher
+// than a "be polite to someone else's API" value — tune alongside
+// LibreTranslate's own LT_THREADS (see docker-compose.yml comment) so the
+// two aren't mismatched: raising this without also giving LibreTranslate
+// enough worker threads just moves the queueing there instead.
+const maxConcurrentTranslations = 8
 
 // POST /api/tracks/:id/translate { target_lang, line_ids?, source? }
 func (s *Server) handleTranslateTrack(c *gin.Context) {
