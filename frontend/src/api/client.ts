@@ -1,6 +1,7 @@
 import type {
   AlignTrackResponse,
   Line,
+  ResetTrackResponse,
   RomanizeResponse,
   ScrapeTrackResponse,
   SearchResult,
@@ -11,7 +12,9 @@ import type {
   UpdateLineRequest,
 } from "./types";
 
-const BASE_URL = import.meta.env.VITE_API_BASE_URL ?? "http://localhost:8080/api";
+// Relative by default so requests go through Vite's dev proxy (see vite.config.ts) —
+// this keeps everything on one origin/port, handy when tunneling (ngrok, etc.).
+const BASE_URL = import.meta.env.VITE_API_BASE_URL ?? "/api";
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
   const res = await fetch(`${BASE_URL}${path}`, {
@@ -64,6 +67,11 @@ export const api = {
 
   revertLine(trackId: string, lineId: number): Promise<Line> {
     return request(`/tracks/${trackId}/lines/${lineId}/revert`, { method: "POST" });
+  },
+
+  /** Wipes translation/romanization/method progress on every line back to pristine. */
+  resetTrack(trackId: string): Promise<ResetTrackResponse> {
+    return request(`/tracks/${trackId}/reset`, { method: "POST" });
   },
 
   translateTrack(trackId: string, body: TranslateRequest): Promise<TranslateResponse> {

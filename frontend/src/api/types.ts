@@ -23,6 +23,8 @@ export interface Line {
   timestamp: string;
   original: string;
   romanized: string;
+  /** "internal" (kagome/gojp-kana) | "scrape" (e.g. utatime.com) | "manual" | "" (never romanized). */
+  romanized_source: string;
   translation: string;
   method: Method;
   needs_review: boolean;
@@ -52,6 +54,7 @@ export interface TrackSummary {
 
 export interface UpdateLineRequest {
   original?: string;
+  romanized?: string;
   timestamp?: string;
   time_ms?: number;
   translation?: string;
@@ -71,6 +74,8 @@ export interface TranslateResponse {
 
 export interface RomanizeResponse {
   lines: Line[];
+  /** Lines left untouched because they already had a scrape-sourced or manually-edited romanization. */
+  skipped_count?: number;
 }
 
 export interface ScrapeTrackResponse {
@@ -82,5 +87,9 @@ export interface ScrapeTrackResponse {
 }
 
 export interface AlignTrackResponse {
+  lines: Line[];
+}
+
+export interface ResetTrackResponse {
   lines: Line[];
 }
