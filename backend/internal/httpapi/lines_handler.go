@@ -32,8 +32,10 @@ func (s *Server) handleRevertLine(c *gin.Context) {
 
 	line.Translation = line.SuggestedTranslation
 	line.Method = line.SuggestedMethod
+	line.TranslationLang = line.SuggestedTranslationLang
 	line.SuggestedTranslation = ""
 	line.SuggestedMethod = ""
+	line.SuggestedTranslationLang = ""
 
 	if err := s.db.Save(&line).Error; err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})

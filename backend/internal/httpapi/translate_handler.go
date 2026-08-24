@@ -5,6 +5,7 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"errors"
+	"fmt"
 	"net/http"
 	"sync"
 
@@ -19,7 +20,7 @@ import (
 // "Handling LibreTranslate rate-limit/downtime".
 const maxConcurrentTranslations = 2
 
-// POST /api/tracks/:id/translate { target_lang, line_ids? }
+// POST /api/tracks/:id/translate { target_lang, line_ids?, source? }
 func (s *Server) handleTranslateTrack(c *gin.Context) {
 	track, err := s.loadTrack(c.Param("id"))
 	if err != nil {
@@ -33,11 +34,28 @@ func (s *Server) handleTranslateTrack(c *gin.Context) {
 		return
 	}
 
+	source := req.Source
+	if source == "" {
+		source = TranslateSourceOriginal
+	}
+
+	// Whole-track guard: track.Language is one value for the entire track,
+	// so a target_lang matching it means EVERY TranslateSourceOriginal line
+	// would be a same-language no-op translate. Reject upfront with a clear
+	// error rather than silently burning MT calls on it — the frontend
+	// should offer "hapus translation" (see handleClearTranslation) instead.
+	// (TranslateSourceScrape lines are checked per-line below instead, since
+	// each line's scrape language can differ.)
+	if source == TranslateSourceOriginal && track.Language != "" && track.Language == req.TargetLang {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "target_lang sama dengan bahasa lirik asli track ini — gunakan aksi hapus translation, bukan translate"})
+		return
+	}
+
 	targets := selectLines(track.Lines, req.LineIDs)
 
-	sourceLang := track.Language
-	if sourceLang == "" {
-		sourceLang = "auto"
+	trackLang := track.Language
+	if trackLang == "" {
+		trackLang = "auto"
 	}
 
 	type outcome struct {
@@ -53,14 +71,33 @@ func (s *Server) handleTranslateTrack(c *gin.Context) {
 		if line.Original == "" {
 			continue
 		}
+
+		// Resolve per-line source text/language: TranslateSourceScrape
+		// chains off this line's own already-scraped translation (e.g. EN
+		// from utatime.com) when it has one, falling back to the original
+		// lyric otherwise so the batch still completes for that line.
+		text, lang := line.Original, trackLang
+		if source == TranslateSourceScrape && line.Method == appdb.MethodScrape && line.Translation != "" {
+			text = line.Translation
+			lang = line.TranslationLang
+			if lang == "" {
+				lang = "auto"
+			}
+		}
+
+		if lang != "" && lang != "auto" && lang == req.TargetLang {
+			outcomes[i] = outcome{err: fmt.Errorf("baris ini sudah dalam bahasa target (%s)", lang)}
+			continue
+		}
+
 		wg.Add(1)
 		sem <- struct{}{}
-		go func(i int, original string) {
+		go func(i int, text, lang string) {
 			defer wg.Done()
 			defer func() { <-sem }()
-			translated, cacheHit, err := s.translateOneCached(c.Request.Context(), original, sourceLang, req.TargetLang)
+			translated, cacheHit, err := s.translateOneCached(c.Request.Context(), text, lang, req.TargetLang)
 			outcomes[i] = outcome{translated: translated, cacheHit: cacheHit, err: err}
-		}(i, line.Original)
+		}(i, text, lang)
 	}
 	wg.Wait()
 
@@ -85,9 +122,58 @@ func (s *Server) handleTranslateTrack(c *gin.Context) {
 		}
 
 		line.Translation = o.translated
+		line.TranslationLang = ""
 		line.Method = appdb.MethodMT
 		if err := s.db.Save(&line).Error; err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to save translated line: " + err.Error()})
+			return
+		}
+		resp.Lines = append(resp.Lines, toLineDTO(line))
+	}
+
+	c.JSON(http.StatusOK, resp)
+}
+
+// POST /api/tracks/:id/translate/clear { line_ids? }
+// Wipes Translation(/TranslationLang/Method) back to empty/"none" for the
+// targeted lines, without touching Original/Romanized/Timestamp. This is
+// the alternative action offered when a translate would otherwise be a
+// same-language no-op (see the track.Language guard in handleTranslateTrack
+// and the per-line guard above it) — deleting is the sensible move there,
+// not translating.
+func (s *Server) handleClearTranslation(c *gin.Context) {
+	track, err := s.loadTrack(c.Param("id"))
+	if err != nil {
+		respondTrackLookupError(c, err)
+		return
+	}
+
+	var req ClearTranslationRequest
+	if c.Request.ContentLength != 0 {
+		if err := c.ShouldBindJSON(&req); err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+			return
+		}
+	}
+
+	targets := selectLines(track.Lines, req.LineIDs)
+
+	resp := ClearTranslationResponse{Lines: []LineDTO{}}
+	for _, line := range targets {
+		if line.Translation == "" && line.Method == appdb.MethodNone {
+			continue // already clear, nothing to do
+		}
+
+		line.Translation = ""
+		line.TranslationLang = ""
+		line.Method = appdb.MethodNone
+		line.SuggestedTranslation = ""
+		line.SuggestedMethod = ""
+		line.SuggestedTranslationLang = ""
+		line.NeedsReview = false
+
+		if err := s.db.Save(&line).Error; err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to clear line: " + err.Error()})
 			return
 		}
 		resp.Lines = append(resp.Lines, toLineDTO(line))

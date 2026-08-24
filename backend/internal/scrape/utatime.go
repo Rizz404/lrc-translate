@@ -48,6 +48,39 @@ func isUtatimeHost(host string) bool {
 	return h == "utatime.com" || h == "www.utatime.com"
 }
 
+// utatimeLangNames maps a utatime.com translation subtab's id (the language
+// name it's rendered under, e.g. "English") to an ISO 639-1-ish code
+// matching what the rest of the app uses for Track.Language/target_lang
+// (e.g. "en"). Only covers the languages utatime.com is actually known to
+// offer translations in; an id not in this map falls back to its
+// lowercased self (see utatimeLangCode) — good enough to still be a stable,
+// comparable value even if it doesn't line up with an app-recognized code.
+var utatimeLangNames = map[string]string{
+	"english":    "en",
+	"indonesian": "id",
+	"japanese":   "ja",
+	"korean":     "ko",
+	"chinese":    "zh",
+	"spanish":    "es",
+	"vietnamese": "vi",
+	"thai":       "th",
+	"french":     "fr",
+	"german":     "de",
+	"portuguese": "pt",
+	"russian":    "ru",
+	"arabic":     "ar",
+}
+
+// utatimeLangCode normalizes a utatime.com translation subtab id into a
+// language code — see utatimeLangNames.
+func utatimeLangCode(subtabID string) string {
+	lower := strings.ToLower(strings.TrimSpace(subtabID))
+	if code, ok := utatimeLangNames[lower]; ok {
+		return code
+	}
+	return lower
+}
+
 var (
 	nonSlugCharsRe  = regexp.MustCompile(`[^a-z0-9\s-]`)
 	whitespaceRunRe = regexp.MustCompile(`[\s-]+`)
@@ -173,7 +206,7 @@ func searchUtatimeLyricURL(ctx context.Context, artist, title string) (string, e
 // text. Callers should treat any error here as "auto-discovery failed" and
 // fall back to asking the user for the page URL directly — not as a reason
 // to retry more guesses.
-func TryAutoDiscoverUtatime(ctx context.Context, artist, title string) (resolvedURL, translation, romanized string, err error) {
+func TryAutoDiscoverUtatime(ctx context.Context, artist, title string) (resolvedURL, translation, romanized, language string, err error) {
 	var candidates []string
 	searchURL, searchErr := searchUtatimeLyricURL(ctx, artist, title)
 	if searchErr == nil {
@@ -182,7 +215,7 @@ func TryAutoDiscoverUtatime(ctx context.Context, artist, title string) (resolved
 	candidates = append(candidates, guessUtatimeURLs(artist, title)...)
 
 	if len(candidates) == 0 {
-		return "", "", "", fmt.Errorf("artist/title has no usable characters to guess a URL from")
+		return "", "", "", "", fmt.Errorf("artist/title has no usable characters to guess a URL from")
 	}
 
 	lastErr := searchErr
@@ -205,16 +238,16 @@ func TryAutoDiscoverUtatime(ctx context.Context, artist, title string) (resolved
 			continue
 		}
 
-		tl, rj, parseHTMLErr := parseUtatimeHTML(html)
+		tl, rj, lang, parseHTMLErr := parseUtatimeHTML(html)
 		if parseHTMLErr != nil {
 			lastErr = parseHTMLErr
 			continue
 		}
 
-		return candidate, tl, rj, nil
+		return candidate, tl, rj, lang, nil
 	}
 
-	return "", "", "", fmt.Errorf("couldn't find this song on utatime.com automatically (%v) — paste the page URL instead", lastErr)
+	return "", "", "", "", fmt.Errorf("couldn't find this song on utatime.com automatically (%v) — paste the page URL instead", lastErr)
 }
 
 // parseUtatimeHTML extracts translation and romanization from a utatime.com
@@ -225,6 +258,9 @@ func TryAutoDiscoverUtatime(ctx context.Context, artist, title string) (resolved
 // top entry of the page's own "Add Translation" dropdown, since English
 // (UtaTime)'s own official translation is listed first when available).
 // Missing entirely is an error — there's nothing useful to align without it.
+// language is the picked subtab's id normalized via utatimeLangCode (e.g.
+// "en"), so callers know what language Translation is actually in — see
+// db.ScrapeSource.Language.
 //
 // Romanization: read from #Romaji. UtaTime's own romanization is generally
 // more accurate than this app's own kagome/gojp-kana pipeline (word
@@ -236,36 +272,37 @@ func TryAutoDiscoverUtatime(ctx context.Context, artist, title string) (resolved
 // Both read one line per ".olyrictext .line-text" span; goquery's .Text()
 // already turns a "<br/>"-only span into an empty string, which lines up
 // with align.go's convention of blank lines marking block boundaries.
-func parseUtatimeHTML(html string) (translation, romanized string, err error) {
+func parseUtatimeHTML(html string) (translation, romanized, language string, err error) {
 	doc, err := goquery.NewDocumentFromReader(strings.NewReader(html))
 	if err != nil {
-		return "", "", fmt.Errorf("parse HTML: %w", err)
+		return "", "", "", fmt.Errorf("parse HTML: %w", err)
 	}
 
 	var translationTab *goquery.Selection
+	var translationTabID string
 	doc.Find(`#Translations .subcontents`).EachWithBreak(func(_ int, sel *goquery.Selection) bool {
 		id, _ := sel.Attr("id")
 		if translationTab == nil {
-			translationTab = sel // remember the first as a fallback
+			translationTab, translationTabID = sel, id // remember the first as a fallback
 		}
 		if strings.EqualFold(id, "English") {
-			translationTab = sel
+			translationTab, translationTabID = sel, id
 			return false // English found, stop looking
 		}
 		return true
 	})
 	if translationTab == nil {
-		return "", "", fmt.Errorf("no translation tab found on this utatime.com page")
+		return "", "", "", fmt.Errorf("no translation tab found on this utatime.com page")
 	}
 
 	translationLines := extractOlyrictextLines(translationTab)
 	if len(translationLines) == 0 {
-		return "", "", fmt.Errorf("translation tab found but contained no text")
+		return "", "", "", fmt.Errorf("translation tab found but contained no text")
 	}
 
 	romanized = strings.Join(extractOlyrictextLines(doc.Find("#Romaji").First()), "\n")
 
-	return strings.Join(translationLines, "\n"), romanized, nil
+	return strings.Join(translationLines, "\n"), romanized, utatimeLangCode(translationTabID), nil
 }
 
 func extractOlyrictextLines(scope *goquery.Selection) []string {

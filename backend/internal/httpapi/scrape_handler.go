@@ -35,15 +35,15 @@ func (s *Server) handleScrapeTrack(c *gin.Context) {
 		}
 	}
 
-	var rawText, rawRomanized, resolvedURL string
+	var rawText, rawRomanized, language, resolvedURL string
 	var err error
 	autoDiscovered := req.SourceURL == ""
 
 	if autoDiscovered {
-		resolvedURL, rawText, rawRomanized, err = scrape.TryAutoDiscoverUtatime(c.Request.Context(), track.Artist, track.Title)
+		resolvedURL, rawText, rawRomanized, language, err = scrape.TryAutoDiscoverUtatime(c.Request.Context(), track.Artist, track.Title)
 	} else {
 		resolvedURL = req.SourceURL
-		rawText, rawRomanized, err = scrape.Scrape(c.Request.Context(), resolvedURL)
+		rawText, rawRomanized, language, err = scrape.Scrape(c.Request.Context(), resolvedURL)
 	}
 	if err != nil {
 		status := http.StatusBadGateway
@@ -65,6 +65,7 @@ func (s *Server) handleScrapeTrack(c *gin.Context) {
 		TrackID:      trackID,
 		SourceURL:    resolvedURL,
 		RawText:      rawText,
+		Language:     language,
 		RawRomanized: rawRomanized,
 		FetchedAt:    time.Now(),
 	}
@@ -77,6 +78,7 @@ func (s *Server) handleScrapeTrack(c *gin.Context) {
 		ScrapeSourceID: source.ID,
 		ResolvedURL:    source.SourceURL,
 		RawText:        source.RawText,
+		Language:       source.Language,
 		RawRomanized:   source.RawRomanized,
 		AutoDiscovered: autoDiscovered,
 	})
@@ -110,6 +112,17 @@ func (s *Server) handleAlignTrack(c *gin.Context) {
 		return
 	}
 
+	// Fill in/override the source's language when the caller supplies one —
+	// the only way a non-utatime.com source (ScrapeTrackResponse.Language
+	// empty) ever gets one, see AlignTrackRequest.Language.
+	if req.Language != "" && req.Language != source.Language {
+		source.Language = req.Language
+		if err := s.db.Save(&source).Error; err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			return
+		}
+	}
+
 	originalTexts := make([]string, len(track.Lines))
 	for i, l := range track.Lines {
 		originalTexts[i] = l.Original
@@ -138,6 +151,7 @@ func (s *Server) handleAlignTrack(c *gin.Context) {
 		line := track.Lines[i]
 		if translation != "" {
 			line.Translation = translation
+			line.TranslationLang = source.Language
 			line.Method = appdb.MethodScrape
 		}
 		if romanized != "" {

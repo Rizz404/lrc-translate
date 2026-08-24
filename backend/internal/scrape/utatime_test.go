@@ -71,7 +71,7 @@ const sampleUtatimeHTML = `
 </body></html>`
 
 func TestParseUtatimeHTML_PrefersEnglish(t *testing.T) {
-	translation, romanized, err := parseUtatimeHTML(sampleUtatimeHTML)
+	translation, romanized, language, err := parseUtatimeHTML(sampleUtatimeHTML)
 	if err != nil {
 		t.Fatalf("parseUtatimeHTML returned error: %v", err)
 	}
@@ -85,12 +85,16 @@ func TestParseUtatimeHTML_PrefersEnglish(t *testing.T) {
 	if romanized != wantRomanized {
 		t.Errorf("romanized = %q, want %q", romanized, wantRomanized)
 	}
+
+	if language != "en" {
+		t.Errorf("language = %q, want %q", language, "en")
+	}
 }
 
 func TestParseUtatimeHTML_FallsBackWhenNoEnglish(t *testing.T) {
 	htmlNoEnglish := strings.Replace(sampleUtatimeHTML, `id="English"`, `id="Indonesian"`, 1)
 
-	translation, _, err := parseUtatimeHTML(htmlNoEnglish)
+	translation, _, language, err := parseUtatimeHTML(htmlNoEnglish)
 	if err != nil {
 		t.Fatalf("parseUtatimeHTML returned error: %v", err)
 	}
@@ -99,10 +103,13 @@ func TestParseUtatimeHTML_FallsBackWhenNoEnglish(t *testing.T) {
 	if !strings.Contains(translation, "Verglichenes Kind") {
 		t.Errorf("expected fallback to first available subtab, got %q", translation)
 	}
+	if language != "de" {
+		t.Errorf("language = %q, want %q", language, "de")
+	}
 }
 
 func TestParseUtatimeHTML_ErrorsWithoutTranslationsBlock(t *testing.T) {
-	_, _, err := parseUtatimeHTML(`<html><body><div class="contents" id="Original"></div></body></html>`)
+	_, _, _, err := parseUtatimeHTML(`<html><body><div class="contents" id="Original"></div></body></html>`)
 	if err == nil {
 		t.Fatal("expected an error when there's no #Translations block")
 	}
@@ -110,7 +117,7 @@ func TestParseUtatimeHTML_ErrorsWithoutTranslationsBlock(t *testing.T) {
 
 func TestToUtatimeGlobalURL(t *testing.T) {
 	cases := map[string]string{
-		"https://www.utatime.com/lyrics/kessoku-band/seiza-ni-naretara/":         "https://www.utatime.com/global/lyrics/kessoku-band/seiza-ni-naretara/",
+		"https://www.utatime.com/lyrics/kessoku-band/seiza-ni-naretara/":        "https://www.utatime.com/global/lyrics/kessoku-band/seiza-ni-naretara/",
 		"https://www.utatime.com/global/lyrics/kessoku-band/seiza-ni-naretara/": "https://www.utatime.com/global/lyrics/kessoku-band/seiza-ni-naretara/", // already global: unchanged
 		"https://www.utatime.com/series/some-anime-theme-songs/":                "https://www.utatime.com/series/some-anime-theme-songs/",                // not a /lyrics/ URL: unchanged
 	}
@@ -176,7 +183,7 @@ func TestParseUtatimeSearchHTML_NoSongResult(t *testing.T) {
 func TestParseUtatimeHTML_MissingRomajiIsNotAnError(t *testing.T) {
 	htmlNoRomaji := strings.Replace(sampleUtatimeHTML, `id="Romaji"`, `id="NotRomaji"`, 1)
 
-	translation, romanized, err := parseUtatimeHTML(htmlNoRomaji)
+	translation, romanized, _, err := parseUtatimeHTML(htmlNoRomaji)
 	if err != nil {
 		t.Fatalf("parseUtatimeHTML returned error: %v", err)
 	}

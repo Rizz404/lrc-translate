@@ -2,13 +2,13 @@ package httpapi
 
 // SearchResultDTO is one candidate returned by GET /api/search.
 type SearchResultDTO struct {
-	LrclibID         int64   `json:"lrclib_id"`
-	Title            string  `json:"title"`
-	Artist           string  `json:"artist"`
-	Album            string  `json:"album"`
-	DurationMs       int64   `json:"duration_ms"`
-	Instrumental     bool    `json:"instrumental"`
-	HasSyncedLyrics  bool    `json:"has_synced_lyrics"`
+	LrclibID        int64  `json:"lrclib_id"`
+	Title           string `json:"title"`
+	Artist          string `json:"artist"`
+	Album           string `json:"album"`
+	DurationMs      int64  `json:"duration_ms"`
+	Instrumental    bool   `json:"instrumental"`
+	HasSyncedLyrics bool   `json:"has_synced_lyrics"`
 }
 
 // ImportTrackRequest is the body of POST /api/tracks/import.
@@ -18,18 +18,21 @@ type ImportTrackRequest struct {
 
 // LineDTO is one synced lyric line as exposed by the API.
 type LineDTO struct {
-	ID          uint   `json:"id"`
-	LineIndex   int    `json:"line_index"`
-	TimeMs      int64  `json:"time_ms"`
-	Timestamp   string `json:"timestamp"`
-	Original    string `json:"original"`
-	Romanized   string `json:"romanized"`
+	ID        uint   `json:"id"`
+	LineIndex int    `json:"line_index"`
+	TimeMs    int64  `json:"time_ms"`
+	Timestamp string `json:"timestamp"`
+	Original  string `json:"original"`
+	Romanized string `json:"romanized"`
 	// RomanizedSource is "internal" | "scrape" | "" (never romanized) — see
 	// db.Line.RomanizedSource.
 	RomanizedSource string `json:"romanized_source,omitempty"`
-	Translation string `json:"translation"`
-	Method      string `json:"method"`
-	NeedsReview bool   `json:"needs_review"`
+	Translation     string `json:"translation"`
+	// TranslationLang is Translation's language code (e.g. "en"), set only
+	// when Translation came from a scrape source — see db.Line.TranslationLang.
+	TranslationLang string `json:"translation_lang,omitempty"`
+	Method          string `json:"method"`
+	NeedsReview     bool   `json:"needs_review"`
 }
 
 // TrackDTO is a full track with its lines, as returned by GET /api/tracks/:id
@@ -81,10 +84,29 @@ type UpdateLineRequest struct {
 	Translation *string `json:"translation"`
 }
 
+// TranslateSource selects what text handleTranslateTrack feeds to
+// LibreTranslate as the source of each line.
+type TranslateSource string
+
+const (
+	// TranslateSourceOriginal translates from Line.Original (the original
+	// lyric text), same as before this field existed — the default.
+	TranslateSourceOriginal TranslateSource = "original"
+	// TranslateSourceScrape translates from Line.Translation on lines whose
+	// Method is "scrape" (chaining off an already-scraped translation, e.g.
+	// EN from utatime.com, instead of the original lyric — see
+	// plan-extended.md). Lines without scrape data fall back to
+	// TranslateSourceOriginal so the batch still completes for them.
+	TranslateSourceScrape TranslateSource = "scrape"
+)
+
 // TranslateRequest is the body of POST /api/tracks/:id/translate.
 type TranslateRequest struct {
 	TargetLang string `json:"target_lang" binding:"required"`
 	LineIDs    []uint `json:"line_ids"` // empty = translate all lines
+	// Source picks what text to translate from — see TranslateSource.
+	// Defaults to TranslateSourceOriginal when empty.
+	Source TranslateSource `json:"source"`
 }
 
 // TranslateResponse reports the outcome of a translate batch.
@@ -96,6 +118,17 @@ type TranslateResponse struct {
 		LineID uint   `json:"line_id"`
 		Error  string `json:"error"`
 	} `json:"failed,omitempty"`
+}
+
+// ClearTranslationRequest is the body of POST /api/tracks/:id/translate/clear.
+type ClearTranslationRequest struct {
+	LineIDs []uint `json:"line_ids"` // empty = clear all lines
+}
+
+// ClearTranslationResponse reports every line actually cleared (lines that
+// were already empty/method "none" are left out).
+type ClearTranslationResponse struct {
+	Lines []LineDTO `json:"lines"`
 }
 
 // RomanizeResponse reports the outcome of a romanize batch. SkippedCount
@@ -125,13 +158,23 @@ type ScrapeTrackResponse struct {
 	ScrapeSourceID uint   `json:"scrape_source_id"`
 	ResolvedURL    string `json:"resolved_url"`
 	RawText        string `json:"raw_text"`
+	// Language is RawText's language code, auto-detected only for
+	// utatime.com (from its picked translation subtab); empty for any other
+	// site — the frontend should then prompt the user to fill it in (see
+	// AlignTrackRequest.Language) before relying on it for the
+	// same-language checks in handleTranslateTrack.
+	Language       string `json:"language,omitempty"`
 	RawRomanized   string `json:"raw_romanized,omitempty"` // only present for sources that provide one, e.g. utatime.com
 	AutoDiscovered bool   `json:"auto_discovered"`
 }
 
-// AlignTrackRequest is the body of POST /api/tracks/:id/align.
+// AlignTrackRequest is the body of POST /api/tracks/:id/align. Language is
+// optional and only meant to fill in a scrape source that came back with an
+// empty ScrapeTrackResponse.Language (i.e. every non-utatime.com source) —
+// when set, it overwrites the stored ScrapeSource.Language before aligning.
 type AlignTrackRequest struct {
-	ScrapeSourceID uint `json:"scrape_source_id" binding:"required"`
+	ScrapeSourceID uint   `json:"scrape_source_id" binding:"required"`
+	Language       string `json:"language,omitempty"`
 }
 
 // AlignTrackResponse is stage 2 of Cabang C: lines updated with the

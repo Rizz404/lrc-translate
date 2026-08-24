@@ -30,17 +30,17 @@ const (
 
 // Track is a song with synced lyrics.
 type Track struct {
-	ID            string `gorm:"primaryKey"`
-	LrclibID      string
-	Title         string
-	Artist        string
-	Album         string
-	DurationMs    int64
-	Language      string
-	Source        TrackSource
-	RawSyncedLrc  string `gorm:"type:text"`
-	CreatedAt     time.Time
-	UpdatedAt     time.Time
+	ID           string `gorm:"primaryKey"`
+	LrclibID     string
+	Title        string
+	Artist       string
+	Album        string
+	DurationMs   int64
+	Language     string
+	Source       TrackSource
+	RawSyncedLrc string `gorm:"type:text"`
+	CreatedAt    time.Time
+	UpdatedAt    time.Time
 
 	Lines []Line `gorm:"constraint:OnDelete:CASCADE"`
 }
@@ -61,14 +61,24 @@ type Line struct {
 	// see httpapi/romanize_handler.go, httpapi/scrape_handler.go, and
 	// handleUpdateLine in httpapi/tracks_handler.go.
 	RomanizedSource string
-	Translation string `gorm:"type:text"`
-	Method    Method `gorm:"default:none"`
+	Translation     string `gorm:"type:text"`
+	// TranslationLang is the language code of whatever's in Translation right
+	// now (e.g. "en"), set when Translation comes from a scrape source (see
+	// ScrapeSource.Language and httpapi/scrape_handler.go's handleAlignTrack).
+	// Empty for method "mt"/"ai"/"manual"/"none" — those either already
+	// target the language the caller asked for, or have no known language.
+	// Lets handleTranslateTrack in "translate from scrape data" mode chain
+	// MT off of this text/language instead of the original lyric, and refuse
+	// a same-language no-op translate (see plan-extended.md).
+	TranslationLang string
+	Method          Method `gorm:"default:none"`
 
 	// Snapshot of the last auto-generated suggestion, taken right before a
-	// manual edit overwrites Translation/Method. Powers the "revert to
-	// suggestion" feature without a full edit-history table.
-	SuggestedTranslation string `gorm:"type:text"`
-	SuggestedMethod      Method
+	// manual edit overwrites Translation/Method(/TranslationLang). Powers
+	// the "revert to suggestion" feature without a full edit-history table.
+	SuggestedTranslation     string `gorm:"type:text"`
+	SuggestedMethod          Method
+	SuggestedTranslationLang string
 
 	NeedsReview bool
 	CreatedAt   time.Time
@@ -78,12 +88,12 @@ type Line struct {
 // TranslationCache memoizes MT/AI results across tracks so identical source
 // text (e.g. repeated chorus lines) never needs to hit the external API twice.
 type TranslationCache struct {
-	ID              uint   `gorm:"primaryKey"`
-	CacheKey        string `gorm:"uniqueIndex;not null"` // hash(sourceText+sourceLang+targetLang+provider)
-	SourceText      string `gorm:"type:text"`
-	TranslatedText  string `gorm:"type:text"`
-	Provider        string
-	CreatedAt       time.Time
+	ID             uint   `gorm:"primaryKey"`
+	CacheKey       string `gorm:"uniqueIndex;not null"` // hash(sourceText+sourceLang+targetLang+provider)
+	SourceText     string `gorm:"type:text"`
+	TranslatedText string `gorm:"type:text"`
+	Provider       string
+	CreatedAt      time.Time
 }
 
 // ScrapeSource stores raw scraped text for a track, prior to alignment.
@@ -92,10 +102,17 @@ type TranslationCache struct {
 // which tends to be more accurate than our own kagome/gojp-kana pipeline —
 // see internal/scrape/utatime.go).
 type ScrapeSource struct {
-	ID           uint   `gorm:"primaryKey"`
-	TrackID      string `gorm:"index;not null"`
-	SourceURL    string
-	RawText      string `gorm:"type:text"`
+	ID        uint   `gorm:"primaryKey"`
+	TrackID   string `gorm:"index;not null"`
+	SourceURL string
+	RawText   string `gorm:"type:text"`
+	// Language is RawText's language code (e.g. "en"). For utatime.com,
+	// filled in automatically from the picked translation subtab (see
+	// utatimeLangCode in internal/scrape/utatime.go). For any other site
+	// there's no reliable way to detect it, so it starts empty and the user
+	// fills it in via AlignTrackRequest.Language before/at align time — see
+	// handleAlignTrack.
+	Language     string
 	RawRomanized string `gorm:"type:text"`
 	FetchedAt    time.Time
 }

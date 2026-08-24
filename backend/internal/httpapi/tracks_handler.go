@@ -197,9 +197,11 @@ func (s *Server) handleUpdateLine(c *gin.Context) {
 		if line.Method != appdb.MethodManual {
 			line.SuggestedTranslation = line.Translation
 			line.SuggestedMethod = line.Method
+			line.SuggestedTranslationLang = line.TranslationLang
 		}
 		line.Translation = *req.Translation
 		line.Method = appdb.MethodManual
+		line.TranslationLang = "" // no longer attributable to a scrape source
 	}
 
 	if err := s.db.Save(&line).Error; err != nil {
@@ -257,6 +259,7 @@ func toLineDTO(l appdb.Line) LineDTO {
 		Romanized:       l.Romanized,
 		RomanizedSource: l.RomanizedSource,
 		Translation:     l.Translation,
+		TranslationLang: l.TranslationLang,
 		Method:          string(l.Method),
 		NeedsReview:     l.NeedsReview,
 	}
@@ -281,4 +284,3 @@ func detectLanguage(lines []lrc.Line) string {
 	}
 	return ""
 }
-

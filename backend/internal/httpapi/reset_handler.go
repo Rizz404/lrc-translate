@@ -26,11 +26,13 @@ func (s *Server) handleResetTrack(c *gin.Context) {
 	resp := ResetTrackResponse{Lines: make([]LineDTO, len(track.Lines))}
 	for i, line := range track.Lines {
 		line.Translation = ""
+		line.TranslationLang = ""
 		line.Romanized = ""
 		line.RomanizedSource = ""
 		line.Method = appdb.MethodNone
 		line.SuggestedTranslation = ""
 		line.SuggestedMethod = ""
+		line.SuggestedTranslationLang = ""
 		line.NeedsReview = false
 
 		if err := s.db.Save(&line).Error; err != nil {
