@@ -9,7 +9,7 @@ import (
 )
 
 // POST /api/tracks/:id/reset
-// Wipes Translation/Romanized/RomanizedSource/Method (plus the manual-edit
+// Wipes Translation/Romanized/Method (plus the manual-edit
 // SuggestedTranslation/SuggestedMethod snapshot and NeedsReview flag) on
 // every line back to pristine — i.e. undoes all translation, romanization,
 // scrape-alignment, and manual-edit progress in one shot. Original text and

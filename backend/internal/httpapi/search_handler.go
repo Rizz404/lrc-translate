@@ -2,22 +2,10 @@ package httpapi
 
 import (
 	"net/http"
-	"regexp"
 	"strings"
 
 	"github.com/gin-gonic/gin"
 )
-
-var whitespaceRunRe = regexp.MustCompile(`\s+`)
-
-// normalizeQuery trims and collapses internal whitespace runs (stray double
-// spaces, tabs) down to one — a query like "naruto  shippuden" or " naruto"
-// otherwise comes back with zero LRCLIB results even though the clean
-// version matches. Mirrors frontend/src/pages/SearchPage.tsx normalizeQuery;
-// this is the authoritative enforcement, the frontend copy is defense in depth.
-func normalizeQuery(s string) string {
-	return whitespaceRunRe.ReplaceAllString(strings.TrimSpace(s), " ")
-}
 
 // GET /api/search?title=&artist=
 func (s *Server) handleSearch(c *gin.Context) {
@@ -49,4 +37,15 @@ func (s *Server) handleSearch(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, results)
+}
+
+// normalizeQuery trims leading/trailing whitespace and collapses any run of
+// internal whitespace down to a single space. Without this, a query like
+// "naruto  shippuden" (stray double space) or " naruto" (leading space) gets
+// forwarded to LRCLIB as-is and comes back with zero results even though a
+// clean "naruto shippuden"/"naruto" query would match — strings.Fields+Join
+// is the idiomatic way to do this in one pass (Fields already splits on any
+// whitespace run and drops empties).
+func normalizeQuery(s string) string {
+	return strings.Join(strings.Fields(s), " ")
 }

@@ -24,12 +24,12 @@ type LineDTO struct {
 	Timestamp   string `json:"timestamp"`
 	Original    string `json:"original"`
 	Romanized   string `json:"romanized"`
-	// RomanizedSource is "internal" | "scrape" | "manual" | "" (never
-	// romanized) — see db.Line.RomanizedSource.
+	// RomanizedSource is "internal" | "scrape" | "" (never romanized) — see
+	// db.Line.RomanizedSource.
 	RomanizedSource string `json:"romanized_source,omitempty"`
-	Translation     string `json:"translation"`
-	Method          string `json:"method"`
-	NeedsReview     bool   `json:"needs_review"`
+	Translation string `json:"translation"`
+	Method      string `json:"method"`
+	NeedsReview bool   `json:"needs_review"`
 }
 
 // TrackDTO is a full track with its lines, as returned by GET /api/tracks/:id
@@ -71,8 +71,8 @@ type UpdateTrackRequest struct {
 // SuggestedTranslation/SuggestedMethod (unless it's already "manual", so a
 // second manual edit doesn't overwrite the original auto-generated
 // suggestion) and sets Method to "manual" — see handleUpdateLine. Editing
-// Romanized sets RomanizedSource to "manual", which — like "scrape" —
-// protects it from being overwritten by a later Romanize run.
+// Romanized sets RomanizedSource to "manual", protecting it from later
+// being overwritten by a bulk Romanize the same way a "scrape" source is.
 type UpdateLineRequest struct {
 	Original    *string `json:"original"`
 	Romanized   *string `json:"romanized"`
@@ -100,9 +100,9 @@ type TranslateResponse struct {
 
 // RomanizeResponse reports the outcome of a romanize batch. SkippedCount
 // counts lines left untouched because they already carry a scrape-sourced or
-// manually-edited romanization (see db.Line.RomanizedSource) — both more
-// trustworthy than this app's internal kagome/gojp-kana pipeline, so neither
-// is ever overwritten by it.
+// manually-edited romanization (see db.Line.RomanizedSource) — those are
+// trusted over this app's internal kagome/gojp-kana pipeline, so they're
+// never overwritten by a bulk Romanize.
 type RomanizeResponse struct {
 	Lines        []LineDTO `json:"lines"`
 	SkippedCount int       `json:"skipped_count,omitempty"`

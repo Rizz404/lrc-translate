@@ -12,8 +12,8 @@ import (
 // lines rather than tracking which ones already have a romanization — except
 // lines whose Romanized already came from a scrape source (e.g. utatime.com,
 // see handleAlignTrack) or a manual edit (see handleUpdateLine): both are
-// more trustworthy than this pipeline, so they're left untouched and counted
-// in SkippedCount instead.
+// trusted over this pipeline, so they're left untouched and counted in
+// SkippedCount instead.
 func (s *Server) handleRomanizeTrack(c *gin.Context) {
 	track, err := s.loadTrack(c.Param("id"))
 	if err != nil {
