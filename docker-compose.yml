@@ -64,10 +64,16 @@ services:
     #   - "5000:5000"
     volumes:
       - libretranslate-data:/home/libretranslate/.local/share
-    # Optional: restrict downloaded language models to cut first-boot time
-    # and disk usage, e.g. "ja,id,en". Leave unset to load everything.
+    # Restricts which language models get loaded — also works around a
+    # LibreTranslate bug where an EMPTY LT_LOAD_ONLY (rather than truly
+    # unset) crashes it on every boot: `"".split(",")` gives `['']`, which
+    # matches zero of the ~100 downloaded models, so `languages` ends up
+    # empty and `languages[0]` throws IndexError. So this must never
+    # resolve to an empty string — adjust the codes to whatever
+    # source/target languages you actually translate between (LibreTranslate
+    # often needs "en" too, as a pivot for pairs without a direct model).
     environment:
-      LT_LOAD_ONLY: ${LT_LOAD_ONLY:-}
+      LT_LOAD_ONLY: ${LT_LOAD_ONLY:-ja,en,id}
       # LibreTranslate's own worker thread count (default 4 if unset). The
       # backend now sends up to maxConcurrentTranslations (see
       # translate_handler.go) requests at once — bump this to match your
