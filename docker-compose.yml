@@ -21,6 +21,11 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
+    # Without this, Portainer's "Pull and redeploy" (or a plain `docker
+    # compose up -d` on standalone Docker) reuses the cached image instead
+    # of rebuilding from the freshly-pulled repo — so code updates would
+    # silently not take effect.
+    pull_policy: build
     restart: unless-stopped
     ports:
       - "${APP_PORT:-8080}:8080"
