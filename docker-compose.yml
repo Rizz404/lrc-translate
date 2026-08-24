@@ -1,21 +1,61 @@
-# Optional: self-host LibreTranslate to avoid the public instance's rate
-# limits (see plan-extended.md "Handling LibreTranslate rate-limit/downtime").
+# Production stack for deploying via Plesk's Docker extension (Docker >
+# Stacks) or plain `docker compose up -d --build` over SSH.
+#
+# Services:
+#   - app: single container serving both the API and the built frontend
+#     (see ../Dockerfile). Publishes one port — point your Plesk domain's
+#     proxy/reverse-proxy rule at 127.0.0.1:${APP_PORT:-8080}.
+#   - libretranslate: self-hosted MT engine so translate doesn't depend on
+#     libretranslate.com's paid API key (see README.md). First start
+#     downloads language models — can take a while and several GB of disk.
 #
 # Usage:
-#   docker compose up -d
-#   # then in backend/.env: LIBRETRANSLATE_URL=http://localhost:5000
+#   cp .env.example .env   # adjust APP_PORT / secrets if needed
+#   docker compose up -d --build
 #
-# First run downloads language models (can take a while, needs several GB
-# of disk). Not required for Milestone 1; only needed once Milestone 2
-# (translate) hits rate limits on the public instance.
+# Data persistence: the SQLite DB lives in the `app-data` named volume
+# (/app/data/db.sqlite) and survives container recreation/image rebuilds —
+# only `docker compose down -v` (or deleting the volume) wipes it.
 services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    ports:
+      - "${APP_PORT:-8080}:8080"
+    environment:
+      DB_DRIVER: sqlite
+      DB_DSN: /app/data/db.sqlite
+      LRCLIB_BASE_URL: https://lrclib.net/api
+      # Internal Docker network hostname of the libretranslate service below
+      # — not a public URL, so no API key is needed.
+      LIBRETRANSLATE_URL: http://libretranslate:5000
+      LIBRETRANSLATE_API_KEY: ${LIBRETRANSLATE_API_KEY:-}
+      # Frontend is served same-origin by this same container, so CORS
+      # doesn't come into play for normal use; kept for completeness/direct
+      # API access from another origin if you ever need it.
+      ALLOWED_ORIGIN: ${ALLOWED_ORIGIN:-http://localhost:8080}
+    volumes:
+      - app-data:/app/data
+    depends_on:
+      - libretranslate
+
   libretranslate:
     image: libretranslate/libretranslate
-    ports:
-      - "5000:5000"
+    restart: unless-stopped
+    # Not published to the host on purpose — only `app` needs to reach it,
+    # over the internal Docker network as http://libretranslate:5000.
+    # Uncomment to also expose it on the host (e.g. for debugging):
+    # ports:
+    #   - "5000:5000"
     volumes:
       - libretranslate-data:/home/libretranslate/.local/share
-    restart: unless-stopped
+    # Optional: restrict downloaded language models to cut first-boot time
+    # and disk usage, e.g. "ja,id,en". Leave unset to load everything.
+    environment:
+      LT_LOAD_ONLY: ${LT_LOAD_ONLY:-}
 
 volumes:
+  app-data:
   libretranslate-data:

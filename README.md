@@ -50,15 +50,40 @@ Heuristik alignment (`internal/align/align.go`) punya 3 tingkat: posisional 1:1 
 
 Selain terjemahan, halaman utatime.com juga punya romanisasi resmi (tab `#Romaji`) yang kualitasnya lebih baik dari romanizer kita sendiri (kagome+gojp/kana) — jadi begitu align dijalankan, `Line.Romanized` ikut di-align dari sumber itu dan **menggantikan** hasil romanizer otomatis pada baris yang berhasil di-align (independen dari alignment terjemahan, karena pembagian barisnya bisa beda).
 
+## Deploy dengan Docker (Plesk)
+
+Repo ini punya satu `Dockerfile` (root) yang build frontend (Vite) dan backend (Go) lalu menghasilkan **satu image**: binary Go yang sekaligus menyajikan hasil build frontend (static files + SPA fallback ke `index.html`, lihat `STATIC_DIR` di `backend/internal/httpapi/router.go`). `docker-compose.yml` (root) mendefinisikan stack produksinya: service `app` (image di atas) + service `libretranslate` (self-hosted, supaya translate tidak bergantung ke API key berpusat libretranslate.com — lihat bagian di bawah).
+
+### Via Plesk Docker extension
+
+1. Push/clone repo ini ke server (atau upload lewat File Manager Plesk).
+2. Buka **Docker → Stacks** di Plesk, buat stack baru, arahkan ke `docker-compose.yml` di direktori project (atau tempel isinya).
+3. Sebelum deploy, siapkan `.env` di direktori yang sama dengan `docker-compose.yml`:
+   ```
+   cp .env.example .env   # sesuaikan APP_PORT dll bila perlu
+   ```
+4. Deploy stack. First run akan build image (bisa beberapa menit) dan libretranslate akan mengunduh model bahasa (bisa beberapa GB, cukup sekali karena disimpan di named volume `libretranslate-data`).
+5. Container `app` publish ke `127.0.0.1:${APP_PORT:-8080}` (host). Di **Websites & Domains**, pilih domain yang mau dipakai → set domain itu ke mode proxy/reverse-proxy ke `127.0.0.1:8080` (atau tambahkan Nginx directive tambahan seperti `proxy_pass http://127.0.0.1:8080;`) supaya lalu lintas HTTPS Plesk diteruskan ke container.
+6. Data (SQLite + database lirik) persisten di named volume `app-data` (`/app/data/db.sqlite` di dalam container) — aman terhadap rebuild/redeploy image, cuma hilang kalau volume-nya sendiri dihapus.
+
+### Via CLI (SSH ke server)
+
+```
+cp .env.example .env   # sesuaikan bila perlu
+docker compose up -d --build
+```
+
+Update ke versi baru: `git pull && docker compose up -d --build`.
+
 ## ⚠️ LibreTranslate: instance publik sekarang butuh API key
 
 Per Agustus 2026, `https://libretranslate.com` **menolak request tanpa API key berbayar** (`Visit https://portal.libretranslate.com to get an API key`). Beberapa mirror publik lama (`translate.argosopentech.com`, `translate.terraprint.co`, dll) sudah mati/tidak stabil. Client sudah menangani ini dengan benar (error 400 tidak di-retry, pesan error jelas ditampilkan ke user) — ini keterbatasan layanan eksternal, bukan bug di kode.
 
 Opsi:
-1. **Self-host via Docker** (butuh Docker terpasang — belum ada di mesin dev ini):
+1. **Self-host via Docker untuk dev lokal** (butuh Docker terpasang — belum ada di mesin dev ini). `docker-compose.yml` di root berisi stack produksi lengkap (app + libretranslate — lihat bagian "Deploy dengan Docker" di atas), dengan port libretranslate **tidak** dipublish ke host secara default (biar tidak ke-expose publik saat production). Untuk dev lokal, jalankan service libretranslate-nya saja dan publish portnya, backend/frontend tetap jalan native seperti biasa (`go run`, `npm run dev`):
    ```
-   docker compose up -d
+   docker compose run -d --name libretranslate-dev -p 5000:5000 libretranslate
    ```
-   Lalu set `LIBRETRANSLATE_URL=http://localhost:5000` di `backend/.env`. First-run akan mengunduh model bahasa (butuh waktu & disk cukup besar).
+   (atau uncomment blok `ports:` di `docker-compose.yml` lalu `docker compose up -d libretranslate`). Set `LIBRETRANSLATE_URL=http://localhost:5000` di `backend/.env`. First-run akan mengunduh model bahasa (butuh waktu & disk cukup besar).
 2. **Beli API key** dari [portal.libretranslate.com](https://portal.libretranslate.com) dan set `LIBRETRANSLATE_API_KEY` di `backend/.env`.
 3. Cari mirror publik gratis yang masih hidup (cek [community.libretranslate.com](https://community.libretranslate.com)).

@@ -14,6 +14,7 @@ type Config struct {
 	LibreTranslateURL  string
 	LibreTranslateKey  string
 	AllowedOrigin      string
+	StaticDir          string // if set, backend also serves the built frontend (SPA) from this dir
 }
 
 // Load reads configuration from environment variables, applying sane defaults
@@ -27,6 +28,7 @@ func Load() Config {
 		LibreTranslateURL: getEnv("LIBRETRANSLATE_URL", "https://libretranslate.com"),
 		LibreTranslateKey: getEnv("LIBRETRANSLATE_API_KEY", ""),
 		AllowedOrigin:     getEnv("ALLOWED_ORIGIN", "http://localhost:5173"),
+		StaticDir:         getEnv("STATIC_DIR", ""),
 	}
 }
 

@@ -30,7 +30,7 @@ func main() {
 	}
 
 	server := httpapi.NewServer(gdb, lrclibClient, translator, romanizer)
-	router := httpapi.NewRouter(server, cfg.AllowedOrigin)
+	router := httpapi.NewRouter(server, cfg.AllowedOrigin, cfg.StaticDir)
 
 	log.Printf("listening on :%s (db driver=%s dsn=%s)", cfg.Port, cfg.DBDriver, cfg.DBDSN)
 	if err := router.Run(":" + cfg.Port); err != nil {
