@@ -10,6 +10,15 @@ import { SongCandidateList } from "../components/SongCandidateList";
 const SEARCH_DEBOUNCE_MS = 400;
 const MIN_QUERY_LENGTH = 2;
 
+// Trims and collapses internal whitespace runs (stray double spaces, tabs)
+// down to one — a query like "naruto  shippuden" or " naruto" otherwise
+// comes back with zero LRCLIB results even though the clean version
+// matches. Mirrors backend/internal/httpapi/search_handler.go normalizeQuery
+// as defense in depth (this is also enforced server-side).
+function normalizeQuery(s: string): string {
+  return s.trim().replace(/\s+/g, " ");
+}
+
 export function SearchPage() {
   const navigate = useNavigate();
   const [title, setTitle] = useState("");
@@ -25,7 +34,7 @@ export function SearchPage() {
 
   // Auto-search as the user types, debounced so we don't hit the API on every keystroke.
   useEffect(() => {
-    const query = title.trim();
+    const query = normalizeQuery(title);
     if (query.length < MIN_QUERY_LENGTH) {
       setResults(null);
       return;
@@ -75,7 +84,7 @@ export function SearchPage() {
         onSubmit={(e) => {
           e.preventDefault();
           // Enter triggers an immediate search, bypassing the debounce.
-          const query = title.trim();
+          const query = normalizeQuery(title);
           if (query.length >= MIN_QUERY_LENGTH) {
             searchMutation.mutate(query);
           }
