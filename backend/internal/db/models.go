@@ -54,6 +54,13 @@ type Line struct {
 	Timestamp string // "[mm:ss.xx]"
 	Original  string `gorm:"type:text"`
 	Romanized string `gorm:"type:text"`
+	// RomanizedSource tracks who produced Romanized: "internal" (kagome/gojp-kana
+	// pipeline), "scrape" (pulled from a source like utatime.com via alignment),
+	// "manual" (user-edited while viewing romanized text), or "" (never
+	// romanized). Lets handleRomanizeTrack avoid clobbering a scrape-sourced or
+	// manually-corrected romanization, both more trustworthy than this app's own
+	// pipeline — see httpapi/romanize_handler.go, scrape_handler.go, tracks_handler.go.
+	RomanizedSource string
 	Translation string `gorm:"type:text"`
 	Method    Method `gorm:"default:none"`
 

@@ -24,9 +24,12 @@ type LineDTO struct {
 	Timestamp   string `json:"timestamp"`
 	Original    string `json:"original"`
 	Romanized   string `json:"romanized"`
-	Translation string `json:"translation"`
-	Method      string `json:"method"`
-	NeedsReview bool   `json:"needs_review"`
+	// RomanizedSource is "internal" | "scrape" | "manual" | "" (never
+	// romanized) — see db.Line.RomanizedSource.
+	RomanizedSource string `json:"romanized_source,omitempty"`
+	Translation     string `json:"translation"`
+	Method          string `json:"method"`
+	NeedsReview     bool   `json:"needs_review"`
 }
 
 // TrackDTO is a full track with its lines, as returned by GET /api/tracks/:id
@@ -67,9 +70,12 @@ type UpdateTrackRequest struct {
 // Editing Translation snapshots the line's current Translation/Method into
 // SuggestedTranslation/SuggestedMethod (unless it's already "manual", so a
 // second manual edit doesn't overwrite the original auto-generated
-// suggestion) and sets Method to "manual" — see handleUpdateLine.
+// suggestion) and sets Method to "manual" — see handleUpdateLine. Editing
+// Romanized sets RomanizedSource to "manual", which — like "scrape" —
+// protects it from being overwritten by a later Romanize run.
 type UpdateLineRequest struct {
 	Original    *string `json:"original"`
+	Romanized   *string `json:"romanized"`
 	Timestamp   *string `json:"timestamp"` // "[mm:ss.xx]"
 	TimeMs      *int64  `json:"time_ms"`
 	Translation *string `json:"translation"`
@@ -92,9 +98,14 @@ type TranslateResponse struct {
 	} `json:"failed,omitempty"`
 }
 
-// RomanizeResponse reports the outcome of a romanize batch.
+// RomanizeResponse reports the outcome of a romanize batch. SkippedCount
+// counts lines left untouched because they already carry a scrape-sourced or
+// manually-edited romanization (see db.Line.RomanizedSource) — both more
+// trustworthy than this app's internal kagome/gojp-kana pipeline, so neither
+// is ever overwritten by it.
 type RomanizeResponse struct {
-	Lines []LineDTO `json:"lines"`
+	Lines        []LineDTO `json:"lines"`
+	SkippedCount int       `json:"skipped_count,omitempty"`
 }
 
 // ScrapeTrackRequest is the body of POST /api/tracks/:id/scrape.
@@ -126,5 +137,12 @@ type AlignTrackRequest struct {
 // AlignTrackResponse is stage 2 of Cabang C: lines updated with the
 // heuristically-aligned translation, all flagged needs_review.
 type AlignTrackResponse struct {
+	Lines []LineDTO `json:"lines"`
+}
+
+// ResetTrackResponse reports every line after POST /api/tracks/:id/reset
+// wipes translation/romanization/method progress back to pristine (just the
+// imported original text + timestamps, same as right after import).
+type ResetTrackResponse struct {
 	Lines []LineDTO `json:"lines"`
 }

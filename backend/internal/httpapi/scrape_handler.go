@@ -144,7 +144,10 @@ func (s *Server) handleAlignTrack(c *gin.Context) {
 			// UtaTime's own romanization tends to be more accurate than
 			// this app's kagome/gojp-kana pipeline, so it replaces
 			// whatever was there (including a prior auto-generated one).
+			// RomanizedSource="scrape" also protects it from later being
+			// clobbered by the internal pipeline — see handleRomanizeTrack.
 			line.Romanized = romanized
+			line.RomanizedSource = "scrape"
 		}
 		line.NeedsReview = true
 		if err := s.db.Save(&line).Error; err != nil {

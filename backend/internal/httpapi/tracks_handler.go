@@ -179,6 +179,10 @@ func (s *Server) handleUpdateLine(c *gin.Context) {
 	if req.Original != nil {
 		line.Original = *req.Original
 	}
+	if req.Romanized != nil {
+		line.Romanized = *req.Romanized
+		line.RomanizedSource = "manual"
+	}
 	if req.Timestamp != nil {
 		line.Timestamp = *req.Timestamp
 	}
@@ -245,15 +249,16 @@ func toTrackDTO(t appdb.Track) TrackDTO {
 
 func toLineDTO(l appdb.Line) LineDTO {
 	return LineDTO{
-		ID:          l.ID,
-		LineIndex:   l.LineIndex,
-		TimeMs:      l.TimeMs,
-		Timestamp:   l.Timestamp,
-		Original:    l.Original,
-		Romanized:   l.Romanized,
-		Translation: l.Translation,
-		Method:      string(l.Method),
-		NeedsReview: l.NeedsReview,
+		ID:              l.ID,
+		LineIndex:       l.LineIndex,
+		TimeMs:          l.TimeMs,
+		Timestamp:       l.Timestamp,
+		Original:        l.Original,
+		Romanized:       l.Romanized,
+		RomanizedSource: l.RomanizedSource,
+		Translation:     l.Translation,
+		Method:          string(l.Method),
+		NeedsReview:     l.NeedsReview,
 	}
 }
 

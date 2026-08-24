@@ -52,6 +52,7 @@ func NewRouter(s *Server, allowedOrigin string) *gin.Engine {
 
 		api.PUT("/tracks/:id/lines/:lineId", s.handleUpdateLine)
 		api.POST("/tracks/:id/lines/:lineId/revert", s.handleRevertLine)
+		api.POST("/tracks/:id/reset", s.handleResetTrack)
 
 		api.POST("/tracks/:id/translate", s.handleTranslateTrack)
 		api.POST("/tracks/:id/romanize", s.handleRomanizeTrack)
