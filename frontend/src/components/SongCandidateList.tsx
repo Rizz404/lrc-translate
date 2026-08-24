@@ -42,44 +42,48 @@ export function SongCandidateList({ results, onSelect, pendingId }: Props) {
       className="flex flex-col gap-2"
     >
       {results.map((r) => (
-        <motion.li
-          key={r.lrclib_id}
-          variants={itemVariants}
-          transition={{ duration: 0.25 }}
-          className="group flex items-center gap-4 rounded-xl border border-slate-800/80 bg-slate-900/50 p-3.5 pr-4 backdrop-blur transition-colors hover:border-violet-500/40 hover:bg-slate-900"
-        >
-          <div className="flex size-11 shrink-0 items-center justify-center rounded-lg bg-slate-800/80 text-slate-500 transition-colors group-hover:text-violet-400">
-            <Disc3 className="size-5" />
-          </div>
-
-          <div className="min-w-0 flex-1 text-left">
-            <div className="truncate font-medium text-slate-100">{r.title}</div>
-            <div className="mt-0.5 flex items-center gap-1.5 truncate text-sm text-slate-500">
-              <MicVocal className="size-3.5 shrink-0" />
-              <span className="truncate">{r.artist}</span>
-              <span className="text-slate-700">·</span>
-              <span className="shrink-0">{r.album || "tanpa album"}</span>
-              <span className="text-slate-700">·</span>
-              <span className="shrink-0 font-mono text-xs">{formatDuration(r.duration_ms)}</span>
-              {!r.has_synced_lyrics && (
-                <span className="shrink-0 rounded-full bg-amber-500/10 px-2 py-0.5 text-xs text-amber-400">
-                  tanpa synced lyrics
-                </span>
-              )}
-            </div>
-          </div>
-
-          <button
+        <motion.li key={r.lrclib_id} variants={itemVariants} transition={{ duration: 0.25 }}>
+          {/* The whole card is the tap target — no separate "Pilih" button. */}
+          <motion.button
+            type="button"
+            whileTap={{ scale: 0.98 }}
             disabled={!r.has_synced_lyrics || pendingId === r.lrclib_id}
             onClick={() => onSelect(r)}
-            className="shrink-0 rounded-lg bg-slate-800 px-3.5 py-2 text-sm font-medium text-slate-200 transition-all hover:bg-violet-600 hover:text-white active:scale-95 disabled:cursor-not-allowed disabled:opacity-40"
+            className="group flex w-full items-center gap-4 rounded-xl border border-slate-800/80 bg-slate-900/50 p-3.5 text-left backdrop-blur transition-colors hover:border-violet-500/40 hover:bg-slate-900 disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:border-slate-800/80 disabled:hover:bg-slate-900/50"
           >
-            {pendingId === r.lrclib_id ? (
-              <Loader2 className="size-4 animate-spin" />
-            ) : (
-              "Pilih"
+            <div className="flex size-11 shrink-0 items-center justify-center rounded-lg bg-slate-800/80 text-slate-500 transition-colors group-hover:text-violet-400">
+              <Disc3 className="size-5" />
+            </div>
+
+            <div className="min-w-0 flex-1">
+              <div className="truncate font-medium text-slate-100">{r.title}</div>
+
+              <div className="mt-0.5 flex items-center gap-1.5 text-sm text-slate-500">
+                <MicVocal className="size-3.5 shrink-0" />
+                <span className="truncate">{r.artist}</span>
+              </div>
+
+              {/* Album gets its own wrapping line — a long title shouldn't
+                  get clipped or push the duration off-screen (mobile report:
+                  couldn't see the full duration). */}
+              <div className="mt-0.5 text-xs break-words text-slate-500">
+                {r.album || "tanpa album"}
+              </div>
+
+              <div className="mt-1 flex flex-wrap items-center gap-1.5 text-xs text-slate-500">
+                <span className="font-mono">{formatDuration(r.duration_ms)}</span>
+                {!r.has_synced_lyrics && (
+                  <span className="rounded-full bg-amber-500/10 px-2 py-0.5 text-amber-400">
+                    tanpa synced lyrics
+                  </span>
+                )}
+              </div>
+            </div>
+
+            {pendingId === r.lrclib_id && (
+              <Loader2 className="size-4 shrink-0 animate-spin text-violet-400" />
             )}
-          </button>
+          </motion.button>
         </motion.li>
       ))}
     </motion.ul>
