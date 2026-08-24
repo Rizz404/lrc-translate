@@ -1,5 +1,6 @@
 import type {
   AlignTrackResponse,
+  ClearTranslationResponse,
   Line,
   ResetTrackResponse,
   RomanizeResponse,
@@ -81,6 +82,14 @@ export const api = {
     });
   },
 
+  /** Wipes translation (not lyric/timestamp) on the targeted lines — omit lineIds for all lines. */
+  clearTranslation(trackId: string, lineIds?: number[]): Promise<ClearTranslationResponse> {
+    return request(`/tracks/${trackId}/translate/clear`, {
+      method: "POST",
+      body: JSON.stringify({ line_ids: lineIds }),
+    });
+  },
+
   romanizeTrack(trackId: string): Promise<RomanizeResponse> {
     return request(`/tracks/${trackId}/romanize`, { method: "POST" });
   },
@@ -93,10 +102,11 @@ export const api = {
     });
   },
 
-  alignTrack(trackId: string, scrapeSourceId: number): Promise<AlignTrackResponse> {
+  /** language fills in a scrape source that came back with no auto-detected language (i.e. anything but utatime.com). */
+  alignTrack(trackId: string, scrapeSourceId: number, language?: string): Promise<AlignTrackResponse> {
     return request(`/tracks/${trackId}/align`, {
       method: "POST",
-      body: JSON.stringify({ scrape_source_id: scrapeSourceId }),
+      body: JSON.stringify({ scrape_source_id: scrapeSourceId, language }),
     });
   },
 };

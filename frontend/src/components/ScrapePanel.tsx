@@ -24,19 +24,28 @@ export function ScrapePanel({ trackId }: Props) {
   const [showManual, setShowManual] = useState(false);
   const [url, setUrl] = useState("");
   const [showRaw, setShowRaw] = useState(false);
+  // Only asked for when the scrape itself couldn't auto-detect a language
+  // (i.e. every site except utatime.com — see ScrapeTrackResponse.language).
+  // Needed so handleTranslateTrack's "translate dari data scrape" mode knows
+  // what language it's chaining off of.
+  const [scrapedLanguage, setScrapedLanguage] = useState("");
   const patchLine = useEditorStore((s) => s.patchLine);
 
   const scrapeMutation = useMutation({
     mutationFn: (sourceUrl?: string) => api.scrapeTrack(trackId, sourceUrl),
     onError: () => setShowManual(true), // auto-discovery failed -> offer the manual fallback
+    onSuccess: () => setScrapedLanguage(""),
   });
 
   const alignMutation = useMutation({
-    mutationFn: (scrapeSourceId: number) => api.alignTrack(trackId, scrapeSourceId),
+    mutationFn: (scrapeSourceId: number) =>
+      api.alignTrack(trackId, scrapeSourceId, scrapedLanguage.trim() || undefined),
     onSuccess: (resp) => {
       for (const line of resp.lines) patchLine(line.id, line);
     },
   });
+
+  const needsManualLanguage = scrapeMutation.isSuccess && !scrapeMutation.data.language;
 
   return (
     <div className="rounded-xl border border-slate-800/70 bg-slate-900/40">
@@ -81,7 +90,7 @@ export function ScrapePanel({ trackId }: Props) {
                   Cari otomatis (utatime.com)
                 </motion.button>
 
-                {scrapeMutation.isSuccess && (
+                {scrapeMutation.isSuccess && !needsManualLanguage && (
                   <motion.button
                     initial={{ opacity: 0 }}
                     animate={{ opacity: 1 }}
@@ -99,6 +108,39 @@ export function ScrapePanel({ trackId }: Props) {
                   </motion.button>
                 )}
               </div>
+
+              {needsManualLanguage && (
+                <motion.div
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  className="flex flex-wrap items-center gap-2 rounded-lg border border-amber-500/30 bg-amber-500/[0.06] px-3 py-2.5"
+                >
+                  <span className="text-xs text-slate-400">
+                    Situs ini bukan utatime.com — bahasa hasil scrape gak bisa dideteksi otomatis.
+                    Isi kode bahasanya (mis. <code>en</code>) biar fitur translate tahu ini bahasa
+                    apa:
+                  </span>
+                  <input
+                    value={scrapedLanguage}
+                    onChange={(e) => setScrapedLanguage(e.target.value)}
+                    placeholder="en"
+                    className="w-20 rounded-lg border border-slate-800 bg-slate-950/60 px-2.5 py-1.5 text-center text-sm text-slate-200 outline-none transition-colors placeholder:text-slate-600 focus:border-violet-500/50 focus:ring-2 focus:ring-violet-500/15"
+                  />
+                  <motion.button
+                    whileTap={{ scale: 0.95 }}
+                    onClick={() => alignMutation.mutate(scrapeMutation.data!.scrape_source_id)}
+                    disabled={alignMutation.isPending || !scrapedLanguage.trim()}
+                    className="inline-flex items-center gap-2 rounded-lg bg-amber-600 px-3.5 py-2 text-sm font-medium text-white shadow-md shadow-amber-600/20 transition-colors hover:bg-amber-500 disabled:cursor-not-allowed disabled:bg-slate-700 disabled:shadow-none"
+                  >
+                    {alignMutation.isPending ? (
+                      <Loader2 className="size-4 animate-spin" />
+                    ) : (
+                      <Wand2 className="size-4" />
+                    )}
+                    Terapkan Alignment
+                  </motion.button>
+                </motion.div>
+              )}
 
               {scrapeMutation.isError && (
                 <p className="text-xs text-rose-400">

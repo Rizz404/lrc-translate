@@ -26,6 +26,8 @@ export interface Line {
   /** "internal" (kagome/gojp-kana) | "scrape" (e.g. utatime.com) | "manual" | "" (never romanized). */
   romanized_source: string;
   translation: string;
+  /** Translation's language code (e.g. "en"), only set when translation came from a scrape source. */
+  translation_lang?: string;
   method: Method;
   needs_review: boolean;
 }
@@ -60,9 +62,13 @@ export interface UpdateLineRequest {
   translation?: string;
 }
 
+/** "original" = translate from the original lyric (default); "scrape" = chain off an already-scraped translation instead (see TranslatePanel.tsx). */
+export type TranslateSource = "original" | "scrape";
+
 export interface TranslateRequest {
   target_lang: string;
   line_ids?: number[];
+  source?: TranslateSource;
 }
 
 export interface TranslateResponse {
@@ -70,6 +76,14 @@ export interface TranslateResponse {
   cache_hits: number;
   cache_misses: number;
   failed?: { line_id: number; error: string }[];
+}
+
+export interface ClearTranslationRequest {
+  line_ids?: number[];
+}
+
+export interface ClearTranslationResponse {
+  lines: Line[];
 }
 
 export interface RomanizeResponse {
@@ -82,6 +96,8 @@ export interface ScrapeTrackResponse {
   scrape_source_id: number;
   resolved_url: string;
   raw_text: string;
+  /** raw_text's language code, auto-detected only for utatime.com — empty for any other site. */
+  language?: string;
   raw_romanized?: string;
   auto_discovered: boolean;
 }
