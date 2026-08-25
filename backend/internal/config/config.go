@@ -15,6 +15,15 @@ type Config struct {
 	LibreTranslateKey  string
 	AllowedOrigin      string
 	StaticDir          string // if set, backend also serves the built frontend (SPA) from this dir
+
+	// TranslateProvider selects which MT backend handleTranslateTrack uses:
+	// "libretranslate" (self-hosted/free-but-literal, see docker-compose.yml)
+	// or "gemini" (Google AI Studio — needs GeminiAPIKey, gives much more
+	// natural/idiomatic output since it's an LLM that can be steered by a
+	// prompt, e.g. "translate like a song lyric, not word-for-word").
+	TranslateProvider string
+	GeminiAPIKey      string
+	GeminiModel       string
 }
 
 // Load reads configuration from environment variables, applying sane defaults
@@ -29,6 +38,9 @@ func Load() Config {
 		LibreTranslateKey: getEnv("LIBRETRANSLATE_API_KEY", ""),
 		AllowedOrigin:     getEnv("ALLOWED_ORIGIN", "http://localhost:5173"),
 		StaticDir:         getEnv("STATIC_DIR", ""),
+		TranslateProvider: getEnv("TRANSLATE_PROVIDER", "libretranslate"),
+		GeminiAPIKey:      getEnv("GEMINI_API_KEY", ""),
+		GeminiModel:       getEnv("GEMINI_MODEL", "gemini-2.5-flash"),
 	}
 }
 

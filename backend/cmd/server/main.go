@@ -6,6 +6,7 @@ import (
 
 	"lrc-translate/backend/internal/config"
 	"lrc-translate/backend/internal/db"
+	"lrc-translate/backend/internal/gemini"
 	"lrc-translate/backend/internal/httpapi"
 	"lrc-translate/backend/internal/libretranslate"
 	"lrc-translate/backend/internal/lrclib"
@@ -21,7 +22,19 @@ func main() {
 	}
 
 	lrclibClient := lrclib.New(cfg.LRCLIBBaseURL)
-	translator := libretranslate.New(cfg.LibreTranslateURL, cfg.LibreTranslateKey)
+
+	var translator httpapi.Translator
+	switch cfg.TranslateProvider {
+	case "gemini":
+		if cfg.GeminiAPIKey == "" {
+			log.Fatalf("TRANSLATE_PROVIDER=gemini but GEMINI_API_KEY is not set")
+		}
+		translator = gemini.New(cfg.GeminiAPIKey, cfg.GeminiModel)
+	case "libretranslate", "":
+		translator = libretranslate.New(cfg.LibreTranslateURL, cfg.LibreTranslateKey)
+	default:
+		log.Fatalf("unknown TRANSLATE_PROVIDER %q (expected \"libretranslate\" or \"gemini\")", cfg.TranslateProvider)
+	}
 
 	log.Println("loading Japanese romanization dictionary…")
 	romanizer, err := romanize.New()
@@ -29,7 +42,7 @@ func main() {
 		log.Fatalf("failed to init romanizer: %v", err)
 	}
 
-	server := httpapi.NewServer(gdb, lrclibClient, translator, romanizer)
+	server := httpapi.NewServer(gdb, lrclibClient, translator, cfg.TranslateProvider, romanizer)
 	router := httpapi.NewRouter(server, cfg.AllowedOrigin, cfg.StaticDir)
 
 	log.Printf("listening on :%s (db driver=%s dsn=%s)", cfg.Port, cfg.DBDriver, cfg.DBDSN)

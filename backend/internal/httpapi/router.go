@@ -2,6 +2,7 @@
 package httpapi
 
 import (
+	"context"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -10,22 +11,30 @@ import (
 	"github.com/gin-gonic/gin"
 	"gorm.io/gorm"
 
-	"lrc-translate/backend/internal/libretranslate"
 	"lrc-translate/backend/internal/lrclib"
 	"lrc-translate/backend/internal/romanize"
 )
 
-// Server holds the dependencies shared by all HTTP handlers.
-type Server struct {
-	db         *gorm.DB
-	lrclib     *lrclib.Client
-	translator *libretranslate.Client
-	romanizer  *romanize.Romanizer
+// Translator is implemented by any MT backend (see internal/libretranslate
+// and internal/gemini) — lets Server swap providers via config without the
+// rest of the package caring which one is active.
+type Translator interface {
+	Translate(ctx context.Context, text, sourceLang, targetLang string) (string, error)
 }
 
-// NewServer builds a Server with its dependencies.
-func NewServer(db *gorm.DB, lrclibClient *lrclib.Client, translator *libretranslate.Client, romanizer *romanize.Romanizer) *Server {
-	return &Server{db: db, lrclib: lrclibClient, translator: translator, romanizer: romanizer}
+// Server holds the dependencies shared by all HTTP handlers.
+type Server struct {
+	db           *gorm.DB
+	lrclib       *lrclib.Client
+	translator   Translator
+	translatorID string // e.g. "libretranslate" or "gemini" — namespaces the translation cache (see translationCacheKey) so switching providers doesn't serve stale results from a different engine
+	romanizer    *romanize.Romanizer
+}
+
+// NewServer builds a Server with its dependencies. translatorID identifies
+// which Translator was passed in (see Server.translatorID).
+func NewServer(db *gorm.DB, lrclibClient *lrclib.Client, translator Translator, translatorID string, romanizer *romanize.Romanizer) *Server {
+	return &Server{db: db, lrclib: lrclibClient, translator: translator, translatorID: translatorID, romanizer: romanizer}
 }
 
 // NewRouter builds the Gin engine with CORS (restricted to allowedOrigin) and

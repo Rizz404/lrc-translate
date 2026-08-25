@@ -87,3 +87,11 @@ Opsi:
    (atau uncomment blok `ports:` di `docker-compose.yml` lalu `docker compose up -d libretranslate`). Set `LIBRETRANSLATE_URL=http://localhost:5000` di `backend/.env`. First-run akan mengunduh model bahasa (butuh waktu & disk cukup besar).
 2. **Beli API key** dari [portal.libretranslate.com](https://portal.libretranslate.com) dan set `LIBRETRANSLATE_API_KEY` di `backend/.env`.
 3. Cari mirror publik gratis yang masih hidup (cek [community.libretranslate.com](https://community.libretranslate.com)).
+
+## Provider translate alternatif: Gemini (Google AI Studio)
+
+LibreTranslate (opsi default di atas) itu NMT klasik — gratis dan self-hostable, tapi hasilnya cenderung harfiah kata-per-kata, kurang cocok buat lirik lagu yang butuh nuansa/gaya bahasa natural. Backend punya provider alternatif `gemini` (`backend/internal/gemini`) yang pakai LLM Gemini via [Google AI Studio](https://aistudio.google.com/apikey) (ada free tier) dengan prompt yang diarahkan buat nerjemahin "kayak lirik lagu", bukan literal.
+
+Cara pakai: set env var `TRANSLATE_PROVIDER=gemini` dan `GEMINI_API_KEY=<key kamu>` (di `backend/.env` untuk lokal, atau di env vars stack Portainer untuk production — **jangan** commit API key ke git). `GEMINI_MODEL` opsional, default `gemini-2.5-flash`.
+
+Cache translation (`translation_cache` table) di-namespace per provider (`Provider`/cache key ikut `TRANSLATE_PROVIDER`-nya), jadi gonta-ganti provider gak bakal ke-mix atau kepakein hasil cache dari provider lain — translate ulang otomatis dipicu untuk baris yang belum pernah diterjemahkan oleh provider yang lagi aktif.

@@ -8,6 +8,8 @@
 #   - libretranslate: self-hosted MT engine so translate doesn't depend on
 #     libretranslate.com's paid API key (see README.md). First start
 #     downloads language models — can take a while and several GB of disk.
+#     Only actually used while TRANSLATE_PROVIDER=libretranslate (default) —
+#     see the app service's environment below for the Gemini alternative.
 #
 # Usage:
 #   cp .env.example .env   # adjust APP_PORT / secrets if needed
@@ -37,6 +39,14 @@ services:
       # — not a public URL, so no API key is needed.
       LIBRETRANSLATE_URL: http://libretranslate:5000
       LIBRETRANSLATE_API_KEY: ${LIBRETRANSLATE_API_KEY:-}
+      # "libretranslate" (default, free, self-hosted, but fairly literal
+      # output) or "gemini" (Google AI Studio — LLM-based, gives much more
+      # natural/lyric-like translations, needs GEMINI_API_KEY below). Set
+      # both in your Portainer stack's environment variables, not here —
+      # GEMINI_API_KEY is a secret and shouldn't be committed to git.
+      TRANSLATE_PROVIDER: ${TRANSLATE_PROVIDER:-libretranslate}
+      GEMINI_API_KEY: ${GEMINI_API_KEY:-}
+      GEMINI_MODEL: ${GEMINI_MODEL:-gemini-2.5-flash}
       # Frontend is served same-origin by this same container, so CORS
       # doesn't come into play for normal use; kept for completeness/direct
       # API access from another origin if you ever need it.

@@ -190,12 +190,14 @@ func (s *Server) handleClearTranslation(c *gin.Context) {
 	c.JSON(http.StatusOK, resp)
 }
 
-// translateOneCached checks translation_cache before calling out to
-// LibreTranslate, and writes a cache entry on a fresh call. This is what
+// translateOneCached checks translation_cache before calling out to the
+// active Translator, and writes a cache entry on a fresh call. This is what
 // makes repeat translate requests (same text/lang pair, even across
-// different tracks) avoid hitting the external API again.
+// different tracks) avoid hitting the external API again. The cache key is
+// namespaced by s.translatorID so switching providers (e.g. libretranslate
+// -> gemini) doesn't return a stale result translated by a different engine.
 func (s *Server) translateOneCached(ctx context.Context, text, sourceLang, targetLang string) (translated string, cacheHit bool, err error) {
-	key := translationCacheKey(text, sourceLang, targetLang, "libretranslate")
+	key := translationCacheKey(text, sourceLang, targetLang, s.translatorID)
 
 	var cached appdb.TranslationCache
 	err = s.db.Where("cache_key = ?", key).First(&cached).Error
@@ -217,7 +219,7 @@ func (s *Server) translateOneCached(ctx context.Context, text, sourceLang, targe
 		CacheKey:       key,
 		SourceText:     text,
 		TranslatedText: translated,
-		Provider:       "libretranslate",
+		Provider:       s.translatorID,
 	})
 
 	return translated, false, nil
