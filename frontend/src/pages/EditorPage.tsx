@@ -2,7 +2,7 @@ import { useEffect, useLayoutEffect, useState } from "react";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { useNavigate, useParams } from "react-router-dom";
 import { motion } from "motion/react";
-import { AlertTriangle, ArrowLeft, Eraser, Loader2, RotateCcw } from "lucide-react";
+import { AlertTriangle, ArrowLeft, Eraser, Loader2, RotateCcw, Sparkles } from "lucide-react";
 import { api } from "../api/client";
 import { useEditorStore } from "../store/editorStore";
 import { LineRow } from "../components/LineRow";
@@ -50,6 +50,34 @@ export function EditorPage() {
 
   const resetTrackMutation = useMutation({
     mutationFn: () => api.resetTrack(trackId!),
+    onSuccess: (resp) => {
+      for (const line of resp.lines) patchLine(line.id, line);
+    },
+  });
+
+  // On-demand MT reference for every needs_review line (see
+  // ScrapeReference.tsx's "AI" chip) — a same-language sanity check for a
+  // reviewer who can't read the original lyric's language, so a wrong
+  // scrape-alignment guess that isn't an exact duplicate is still visible.
+  // Deliberately a separate opt-in action rather than something align runs
+  // automatically: it costs real MT calls/time, only worth spending once
+  // the reviewer actually wants to double-check something.
+  // lineIds lets a retry target only the ones that failed last time (see the
+  // "coba lagi" button below) instead of re-requesting the whole track —
+  // failures are usually Gemini's free-tier rate limit under a big batch
+  // (see internal/gemini's exponentialBackoff and
+  // ai_reference_handler.go's aiReferenceConcurrency), which a narrower,
+  // later retry clears more reliably than hammering everything again at
+  // once would.
+  const aiReferenceMutation = useMutation({
+    mutationFn: (lineIds?: number[]) => {
+      const needsReview = track!.lines.filter((l) => l.needs_review);
+      const targetLang = needsReview.find((l) => l.translation_lang)?.translation_lang || "en";
+      return api.aiReference(track!.id, {
+        target_lang: targetLang,
+        line_ids: lineIds ?? needsReview.map((l) => l.id),
+      });
+    },
     onSuccess: (resp) => {
       for (const line of resp.lines) patchLine(line.id, line);
     },
@@ -152,9 +180,51 @@ export function EditorPage() {
           scraped lines) — rows that need review still get an amber border,
           see LineRow.tsx. */}
       {needsReviewCount > 0 && (
-        <div className="mt-3 flex items-center gap-2 rounded-lg border border-amber-500/30 bg-amber-500/[0.06] px-3 py-2 text-xs text-amber-300">
-          <AlertTriangle className="size-3.5 shrink-0" />
-          {needsReviewCount} baris hasil scrape perlu dicek manual — ditandai border kuning di bawah.
+        <div className="mt-3 flex flex-col gap-2 rounded-lg border border-amber-500/30 bg-amber-500/[0.06] px-3 py-2 text-xs text-amber-300">
+          <div className="flex flex-wrap items-center gap-2">
+            <AlertTriangle className="size-3.5 shrink-0" />
+            <span>{needsReviewCount} baris hasil scrape perlu dicek manual — ditandai border kuning di bawah.</span>
+          </div>
+          <div className="flex flex-wrap items-center gap-2 pl-[22px]">
+            <button
+              onClick={() => aiReferenceMutation.mutate(undefined)}
+              disabled={aiReferenceMutation.isPending}
+              title="Minta terjemahan mesin per-baris sebagai pembanding — berguna kalau kamu gak bisa baca lirik aslinya, karena hasil ini selalu di posisi yang benar (bukan tebakan alignment). Diproses satu-satu biar gak kena rate limit provider AI-nya."
+              className="inline-flex items-center gap-1.5 rounded-lg border border-sky-500/30 bg-sky-500/[0.08] px-2.5 py-1.5 font-medium text-sky-300 transition-colors hover:bg-sky-500/[0.16] hover:text-sky-200 disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              {aiReferenceMutation.isPending ? (
+                <Loader2 className="size-3.5 animate-spin" />
+              ) : (
+                <Sparkles className="size-3.5" />
+              )}
+              {aiReferenceMutation.isPending ? "Memproses…" : "Bandingkan dengan AI"}
+            </button>
+            {aiReferenceMutation.isSuccess && (
+              <span className="text-slate-500">
+                Referensi AI siap untuk {aiReferenceMutation.data.lines.length} baris — cek chip biru
+                "AI" di bawah tiap terjemahan.
+              </span>
+            )}
+            {aiReferenceMutation.isError && (
+              <span className="text-rose-400">{(aiReferenceMutation.error as Error).message}</span>
+            )}
+          </div>
+          {(aiReferenceMutation.data?.failed?.length ?? 0) > 0 && (
+            <div className="flex flex-wrap items-center gap-2 pl-[22px] text-amber-400">
+              <span>
+                {aiReferenceMutation.data!.failed!.length} baris gagal diminta — provider AI-nya lagi
+                membatasi permintaan (rate limit/kuota). Kalau langsung dicoba lagi masih gagal juga,
+                kemungkinan kuotanya baru reset nanti/besok, bukan cuma butuh nunggu beberapa detik.
+              </span>
+              <button
+                onClick={() => aiReferenceMutation.mutate(aiReferenceMutation.data!.failed!.map((f) => f.line_id))}
+                disabled={aiReferenceMutation.isPending}
+                className="underline decoration-dotted underline-offset-2 hover:text-amber-300 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                coba lagi baris yang gagal
+              </button>
+            </div>
+          )}
         </div>
       )}
 

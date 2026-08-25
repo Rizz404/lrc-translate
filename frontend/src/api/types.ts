@@ -16,6 +16,35 @@ export interface SearchResult {
   has_synced_lyrics: boolean;
 }
 
+/**
+ * One field's (translation's or romanized's) raw scraped match plus its
+ * immediate neighbors in the scraped source text, taken at align time.
+ * Prev/next are "" when there's no neighbor on that side. See
+ * backend/internal/align.Context — none of Align's heuristic strategies are
+ * verified correct, so this lets the editor show what the scrape source
+ * actually said around this point, for a quick sanity check against a
+ * possible bad alignment guess.
+ */
+export interface LineScrapeContext {
+  prev?: string;
+  matched?: string;
+  next?: string;
+}
+
+/** Bundles LineScrapeContext for both fields Align can independently populate on a line. */
+export interface LineScrapeContexts {
+  translation?: LineScrapeContext;
+  romanized?: LineScrapeContext;
+  /**
+   * Machine-translated reference for this line's original text, requested
+   * on demand via api.aiReference — always correctly positioned (a direct
+   * MT call per line, not an alignment guess), so it's useful as a
+   * same-language sanity check on `translation` even for a reviewer who
+   * can't read the original lyric's language at all.
+   */
+  ai?: string;
+}
+
 export interface Line {
   id: number;
   line_index: number;
@@ -30,6 +59,8 @@ export interface Line {
   translation_lang?: string;
   method: Method;
   needs_review: boolean;
+  /** Raw scraped neighborhood this line's scrape-derived text was matched from — undefined until scrape+align has touched this line at least once. */
+  scrape_context?: LineScrapeContexts;
 }
 
 export interface Track {
@@ -104,6 +135,18 @@ export interface ScrapeTrackResponse {
 
 export interface AlignTrackResponse {
   lines: Line[];
+}
+
+export interface AIReferenceRequest {
+  target_lang: string;
+  line_ids?: number[];
+}
+
+export interface AIReferenceResponse {
+  lines: Line[];
+  cache_hits: number;
+  cache_misses: number;
+  failed?: { line_id: number; error: string }[];
 }
 
 export interface ResetTrackResponse {

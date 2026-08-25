@@ -1,4 +1,6 @@
 import type {
+  AIReferenceRequest,
+  AIReferenceResponse,
   AlignTrackResponse,
   ClearTranslationResponse,
   Line,
@@ -107,6 +109,14 @@ export const api = {
     return request(`/tracks/${trackId}/align`, {
       method: "POST",
       body: JSON.stringify({ scrape_source_id: scrapeSourceId, language }),
+    });
+  },
+
+  /** Fetches a fresh MT reference translation per line (see Line.scrape_context.ai) — a same-language sanity check on a scrape-aligned translation for a reviewer who can't read the original lyric's language. Omit lineIds for every line. */
+  aiReference(trackId: string, body: AIReferenceRequest): Promise<AIReferenceResponse> {
+    return request(`/tracks/${trackId}/ai-reference`, {
+      method: "POST",
+      body: JSON.stringify(body),
     });
   },
 };
