@@ -119,12 +119,30 @@ func buildPrompt(text, sourceLang, targetLang string) string {
 
 	return fmt.Sprintf(
 		"You are translating one line from a song's lyrics, from %s to %s. "+
-			"Produce a natural, idiomatic translation that reads like part of "+
-			"a song — not a stiff, literal, word-for-word translation. Preserve "+
-			"the emotional meaning and tone, and keep it roughly as concise as "+
-			"the original line. Output ONLY the translated line itself, with no "+
-			"quotation marks, explanation, or extra commentary.\n\nLine: %q",
-		from, to, text,
+			"This line is one of many sent as separate, independent requests "+
+			"for the same song, so you won't see the other lines — follow the "+
+			"rules below exactly as given so every line stays consistent with "+
+			"the rest of the song even without that context.\n\n"+
+			"Rules:\n"+
+			"1. Register: song lyrics address people informally. Use the "+
+			"casual/informal form of \"I\" and \"you\" in %s, never a formal or "+
+			"polite register (e.g. in Indonesian use \"aku\"/\"kamu\", never "+
+			"\"saya\"/\"Anda\"; in French use \"tu\", never \"vous\") — unless "+
+			"the source line is itself unmistakably formal or reverent in "+
+			"tone. Never mix formal and informal address across lines.\n"+
+			"2. Translate the FULL line. Every word must end up in %s. Never "+
+			"leave part or all of the line untranslated, and never output the "+
+			"source text unchanged — the only exception is a proper noun "+
+			"(a name, a place) with no natural equivalent.\n"+
+			"3. Prioritize meaning over literal wording: render what the line "+
+			"actually means and how a native %s speaker would naturally say it "+
+			"in a song, not a stiff word-for-word mapping of the source "+
+			"grammar.\n"+
+			"4. Keep it roughly as concise as the original line, so it still "+
+			"reads like a lyric.\n\n"+
+			"Output ONLY the translated line itself, with no quotation marks, "+
+			"romanization, explanation, or extra commentary.\n\nLine: %q",
+		from, to, to, to, to, text,
 	)
 }
 
