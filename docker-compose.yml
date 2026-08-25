@@ -74,12 +74,14 @@ services:
     # often needs "en" too, as a pivot for pairs without a direct model).
     environment:
       LT_LOAD_ONLY: ${LT_LOAD_ONLY:-ja,en,id}
-      # LibreTranslate's own worker thread count (default 4 if unset). The
-      # backend now sends up to maxConcurrentTranslations (see
-      # translate_handler.go) requests at once — bump this to match your
-      # host's CPU cores, otherwise those concurrent requests just queue up
-      # inside LibreTranslate instead of actually running in parallel.
-      LT_THREADS: ${LT_THREADS:-8}
+      # LibreTranslate's own worker thread count (default 4 if unset). Keep
+      # this matched to maxConcurrentTranslations (see translate_handler.go)
+      # — both were dialed down from 8 to 3 after real-world testing on this
+      # shared VPS showed 8-way concurrency causing CPU contention: requests
+      # got slower under load, blew past the client timeout, and retried,
+      # making things worse instead of faster. Raise both together only if
+      # you've confirmed the host has the CPU headroom for it.
+      LT_THREADS: ${LT_THREADS:-3}
 
 volumes:
   app-data:

@@ -27,7 +27,13 @@ func New(baseURL, apiKey string) *Client {
 	return &Client{
 		baseURL: baseURL,
 		apiKey:  apiKey,
-		http:    &http.Client{Timeout: 10 * time.Second},
+		// Self-hosted LibreTranslate is CPU-bound neural MT with no GPU —
+		// under concurrent load (or a cold model not yet resident in a
+		// given gunicorn worker) a single translate call can take well
+		// over 10s. 10s was tuned for a lightly-loaded/dedicated instance;
+		// on a shared host running several other containers, raise this
+		// further if you still see "context deadline exceeded" errors.
+		http: &http.Client{Timeout: 30 * time.Second},
 	}
 }
 
