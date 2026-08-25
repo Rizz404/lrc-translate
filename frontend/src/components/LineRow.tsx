@@ -183,7 +183,10 @@ export function LineRow({ trackId, line }: Props) {
             className={`min-w-0 flex-1 resize-none overflow-hidden rounded-lg bg-slate-800/40 px-3 py-2 leading-snug text-sm text-slate-300 outline-none transition-colors placeholder:text-slate-600 hover:bg-slate-800/60 focus:bg-slate-800/80 focus:ring-2 focus:ring-violet-500/15 ${AUTOSIZE_CLASS}`}
           />
           <div className="flex shrink-0 items-center gap-2 self-start sm:self-auto">
-            <MethodBadge method={line.method} needsReview={line.needs_review} />
+            {/* "scrape" badge dropped entirely — redundant with the amber
+                row border (needs_review) plus EditorPage's one summary
+                disclaimer; every other method still gets its badge. */}
+            {line.method !== "scrape" && <MethodBadge method={line.method} />}
             {line.method === "manual" && (
               <button
                 onClick={() => revertMutation.mutate()}

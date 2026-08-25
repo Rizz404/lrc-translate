@@ -24,14 +24,50 @@ interface Props {
  * Asli/Romaji toggle, see store/editorStore.ts showRomanized), so export is
  * always WYSIWYG. The gear icon only opens translation-line options.
  */
+// Fallback for when navigator.clipboard is missing or its write rejects —
+// no secure context (plain http on a non-localhost host), the document not
+// having focus (e.g. a background tab), or a browser that just prompts/denies
+// clipboard-write permission. Without this the button silently did nothing:
+// the promise rejected, nothing caught it, and copied never flipped to true.
+function legacyCopy(text: string): boolean {
+  const textarea = document.createElement("textarea");
+  textarea.value = text;
+  textarea.style.position = "fixed";
+  textarea.style.top = "0";
+  textarea.style.left = "0";
+  textarea.style.opacity = "0";
+  document.body.appendChild(textarea);
+  textarea.focus();
+  textarea.select();
+  let ok = false;
+  try {
+    ok = document.execCommand("copy");
+  } catch {
+    ok = false;
+  }
+  document.body.removeChild(textarea);
+  return ok;
+}
+
 export function CopyDownloadBar({ track }: Props) {
   const showRomanized = useEditorStore((s) => s.showRomanized);
   const [copied, setCopied] = useState(false);
+  const [copyError, setCopyError] = useState<string | null>(null);
   const [optionsOpen, setOptionsOpen] = useState(false);
   const [options, setOptions] = useState<LrcExportOptions>(DEFAULT_LRC_EXPORT_OPTIONS);
 
   async function handleCopy() {
-    await navigator.clipboard.writeText(trackToLrcText(track, showRomanized, options));
+    const text = trackToLrcText(track, showRomanized, options);
+    try {
+      if (!navigator.clipboard?.writeText) throw new Error("Clipboard API tidak tersedia");
+      await navigator.clipboard.writeText(text);
+    } catch {
+      if (!legacyCopy(text)) {
+        setCopyError("Gagal menyalin ke clipboard. Pilih teksnya manual.");
+        return;
+      }
+    }
+    setCopyError(null);
     setCopied(true);
     setTimeout(() => setCopied(false), 1500);
   }
@@ -128,6 +164,19 @@ export function CopyDownloadBar({ track }: Props) {
               </label>
             </div>
           </motion.div>
+        )}
+      </AnimatePresence>
+
+      <AnimatePresence>
+        {copyError && (
+          <motion.p
+            initial={{ opacity: 0, y: -4 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0 }}
+            className="absolute top-full left-0 z-20 mt-2 w-max max-w-xs text-xs text-rose-400"
+          >
+            {copyError}
+          </motion.p>
         )}
       </AnimatePresence>
     </div>

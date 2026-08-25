@@ -1,8 +1,8 @@
-import { useEffect, useState } from "react";
+import { useEffect, useLayoutEffect, useState } from "react";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { useNavigate, useParams } from "react-router-dom";
 import { motion } from "motion/react";
-import { ArrowLeft, Eraser, Loader2, RotateCcw } from "lucide-react";
+import { AlertTriangle, ArrowLeft, Eraser, Loader2, RotateCcw } from "lucide-react";
 import { api } from "../api/client";
 import { useEditorStore } from "../store/editorStore";
 import { LineRow } from "../components/LineRow";
@@ -29,6 +29,18 @@ export function EditorPage() {
     if (fetchedTrack) setTrack(fetchedTrack);
     return () => setTrack(null);
   }, [fetchedTrack, setTrack]);
+
+  // Coming from SearchPage scrolled partway down its results list (e.g. a
+  // song near the bottom), the browser keeps that same scrollY on this new
+  // route — nothing about an SPA navigation resets it. Left alone, the
+  // editor renders "pre-scrolled": whatever ends up at that Y offset (often
+  // mid-lyrics) is what's visible on load, looking like a scroll that never
+  // actually happened. Force it back to the top on every fresh mount (App.tsx
+  // keys this page's wrapper on the trackId-bearing pathname, so this only
+  // runs when we've genuinely landed on a new track, not on every re-render).
+  useLayoutEffect(() => {
+    window.scrollTo(0, 0);
+  }, []);
 
   // Remounting ScrapePanel via a key wipes its internal useState/useMutation
   // state (search results, resolved URL, raw text, alignment status) without
@@ -68,6 +80,8 @@ export function EditorPage() {
     );
   }
   if (!track) return null;
+
+  const needsReviewCount = track.lines.filter((l) => l.needs_review).length;
 
   return (
     <div className="mx-auto min-h-svh max-w-3xl px-4 pt-8 pb-20">
@@ -132,6 +146,17 @@ export function EditorPage() {
       <div className="mt-3">
         <ScrapePanel key={scrapeResetKey} trackId={track.id} />
       </div>
+
+      {/* One summary disclaimer instead of repeating "· perlu dicek" on every
+          single scrape-sourced badge below (was pure noise on a page full of
+          scraped lines) — rows that need review still get an amber border,
+          see LineRow.tsx. */}
+      {needsReviewCount > 0 && (
+        <div className="mt-3 flex items-center gap-2 rounded-lg border border-amber-500/30 bg-amber-500/[0.06] px-3 py-2 text-xs text-amber-300">
+          <AlertTriangle className="size-3.5 shrink-0" />
+          {needsReviewCount} baris hasil scrape perlu dicek manual — ditandai border kuning di bawah.
+        </div>
+      )}
 
       <div className="mt-5 flex flex-col gap-2">
         {track.lines.map((line) => (

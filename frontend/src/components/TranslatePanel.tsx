@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useMutation } from "@tanstack/react-query";
 import { motion } from "motion/react";
 import { Languages, Loader2, Trash2 } from "lucide-react";
@@ -62,6 +62,22 @@ export function TranslatePanel({ trackId }: Props) {
   const [targetLang, setTargetLang] = useState("id");
   const [source, setSource] = useState<TranslateSource>(hasScrapeData ? "scrape" : "original");
 
+  // hasScrapeData can flip false -> true well after this component mounted
+  // (user scrapes + aligns after opening the editor) — the useState
+  // initializer above only ran once, at the time there was no scrape data
+  // yet, so `source` was stuck on "original" even once scrape data showed
+  // up. Keep it following "scrape" as the data appears, but stop once the
+  // user has actually touched the toggle themselves.
+  const userPickedSourceRef = useRef(false);
+  useEffect(() => {
+    if (hasScrapeData && !userPickedSourceRef.current) setSource("scrape");
+  }, [hasScrapeData]);
+
+  function handleSourceChange(next: TranslateSource) {
+    userPickedSourceRef.current = true;
+    setSource(next);
+  }
+
   const scrapeLang = useMemo(() => dominantScrapeLang(lines), [lines]);
   const originalLang = track?.language ?? "";
 
@@ -91,23 +107,27 @@ export function TranslatePanel({ trackId }: Props) {
     <div className="flex flex-wrap items-center gap-2">
       {hasScrapeData && (
         <div className="flex items-center gap-1 rounded-lg border border-slate-800 bg-slate-900/60 p-1 text-xs">
+          {/* Scrape listed first, matching the default selection above
+              (hasScrapeData ? "scrape" : "original") — when scrape data
+              exists it's the safer/preferred source, so it shouldn't sit
+              behind the destructive "timpa lirik asli" option visually. */}
           <button
-            onClick={() => setSource("original")}
-            title="Terjemahkan dari lirik asli, timpa apa pun yang ada"
-            className={`rounded-md px-2 py-1 font-medium transition-colors ${
-              source === "original" ? "bg-violet-600 text-white" : "text-slate-400 hover:text-slate-200"
-            }`}
-          >
-            Timpa dari lirik asli
-          </button>
-          <button
-            onClick={() => setSource("scrape")}
+            onClick={() => handleSourceChange("scrape")}
             title="Terjemahkan dari terjemahan hasil scrape yang sudah ada, bukan lirik asli"
             className={`rounded-md px-2 py-1 font-medium transition-colors ${
               source === "scrape" ? "bg-violet-600 text-white" : "text-slate-400 hover:text-slate-200"
             }`}
           >
             Dari data scrape
+          </button>
+          <button
+            onClick={() => handleSourceChange("original")}
+            title="Terjemahkan dari lirik asli, timpa apa pun yang ada"
+            className={`rounded-md px-2 py-1 font-medium transition-colors ${
+              source === "original" ? "bg-violet-600 text-white" : "text-slate-400 hover:text-slate-200"
+            }`}
+          >
+            Timpa dari lirik asli
           </button>
         </div>
       )}

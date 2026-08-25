@@ -19,10 +19,14 @@ const LABELS: Record<Method, string> = {
 
 interface Props {
   method: Method;
-  needsReview?: boolean;
 }
 
-export function MethodBadge({ method, needsReview }: Props) {
+// "perlu dicek" used to render inline on every single scrape-sourced badge —
+// with a whole page of scraped lines that was the same warning repeated a
+// few dozen times. The row itself already gets an amber border for
+// needs_review (see LineRow.tsx), and EditorPage now surfaces one summary
+// disclaimer above the line list, so the per-badge text was pure noise.
+export function MethodBadge({ method }: Props) {
   return (
     <AnimatePresence mode="wait" initial={false}>
       <motion.span
@@ -34,7 +38,6 @@ export function MethodBadge({ method, needsReview }: Props) {
         className={`inline-flex shrink-0 items-center whitespace-nowrap rounded-full px-2.5 py-1 text-xs font-medium ${STYLES[method]}`}
       >
         {LABELS[method]}
-        {needsReview && <span className="ml-1 text-amber-400">· perlu dicek</span>}
       </motion.span>
     </AnimatePresence>
   );

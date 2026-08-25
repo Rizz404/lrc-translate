@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { useMutation } from "@tanstack/react-query";
 import { useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "motion/react";
@@ -6,6 +6,7 @@ import { Search, Music2, Loader2 } from "lucide-react";
 import type { SearchResult } from "../api/types";
 import { api } from "../api/client";
 import { SongCandidateList } from "../components/SongCandidateList";
+import { useSearchStore } from "../store/searchStore";
 
 const SEARCH_DEBOUNCE_MS = 400;
 const MIN_QUERY_LENGTH = 2;
@@ -21,8 +22,10 @@ function normalizeQuery(s: string): string {
 
 export function SearchPage() {
   const navigate = useNavigate();
-  const [title, setTitle] = useState("");
-  const [results, setResults] = useState<SearchResult[] | null>(null);
+  const title = useSearchStore((s) => s.title);
+  const setTitle = useSearchStore((s) => s.setTitle);
+  const results = useSearchStore((s) => s.results);
+  const setResults = useSearchStore((s) => s.setResults);
   const [importingId, setImportingId] = useState<number | null>(null);
 
   const searchMutation = useMutation({
@@ -31,6 +34,14 @@ export function SearchPage() {
   });
   const searchMutationRef = useRef(searchMutation);
   searchMutationRef.current = searchMutation;
+
+  // Restore the scroll position the user was at before they navigated away
+  // to the editor — runs before paint so there's no visible jump back to
+  // the top first. Only on mount: this must not re-fire on every re-render
+  // (e.g. as results come back), or it'd fight the user's own scrolling.
+  useLayoutEffect(() => {
+    window.scrollTo(0, useSearchStore.getState().scrollY);
+  }, []);
 
   // Auto-search as the user types, debounced so we don't hit the API on every keystroke.
   useEffect(() => {
@@ -45,7 +56,7 @@ export function SearchPage() {
     }, SEARCH_DEBOUNCE_MS);
 
     return () => clearTimeout(timer);
-  }, [title]);
+  }, [title, setResults]);
 
   const importMutation = useMutation({
     mutationFn: (lrclibId: number) => api.importTrack(lrclibId),
@@ -54,6 +65,9 @@ export function SearchPage() {
   });
 
   function handleSelect(result: SearchResult) {
+    // Snapshot scroll position now, before the import round-trip — restored
+    // in the useLayoutEffect above whenever the user comes back here.
+    useSearchStore.getState().setScrollY(window.scrollY);
     setImportingId(result.lrclib_id);
     importMutation.mutate(result.lrclib_id);
   }
