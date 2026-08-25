@@ -80,6 +80,22 @@ type Line struct {
 	SuggestedMethod          Method
 	SuggestedTranslationLang string
 
+	// ScrapeContext is a JSON-encoded snapshot (see httpapi.LineScrapeContextsDTO)
+	// of the raw scraped line(s) immediately around wherever Translation
+	// and/or Romanized were actually matched from during alignment — taken
+	// once, at align time (httpapi.handleAlignTrack), from
+	// internal/align.AlignWithContext. Empty until a scrape+align has
+	// mapped something onto this line. None of Align's heuristic strategies
+	// are verified correct (needs_review is always set alongside this), so
+	// the editor UI shows this neighborhood next to the line to make a bad
+	// guess — e.g. two original lines both mapped to the same scraped
+	// line — visible at a glance instead of requiring a manual diff against
+	// the full raw scraped text. Kept as a single JSON text column rather
+	// than typed columns, consistent with the portability rule at the top
+	// of this file (this one shape, not scalar, doesn't map cleanly to a
+	// native column type across dialects anyway).
+	ScrapeContext string `gorm:"type:text"`
+
 	NeedsReview bool
 	CreatedAt   time.Time
 	UpdatedAt   time.Time

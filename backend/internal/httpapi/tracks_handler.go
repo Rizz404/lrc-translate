@@ -1,6 +1,7 @@
 package httpapi
 
 import (
+	"encoding/json"
 	"errors"
 	"net/http"
 	"strconv"
@@ -250,7 +251,7 @@ func toTrackDTO(t appdb.Track) TrackDTO {
 }
 
 func toLineDTO(l appdb.Line) LineDTO {
-	return LineDTO{
+	dto := LineDTO{
 		ID:              l.ID,
 		LineIndex:       l.LineIndex,
 		TimeMs:          l.TimeMs,
@@ -263,6 +264,18 @@ func toLineDTO(l appdb.Line) LineDTO {
 		Method:          string(l.Method),
 		NeedsReview:     l.NeedsReview,
 	}
+	if l.ScrapeContext != "" {
+		var ctx LineScrapeContextsDTO
+		// A decode failure here means stored JSON we can no longer parse
+		// (shouldn't happen — this app is the only writer) — surfacing it
+		// as a missing context is harmless (same as never having one), so
+		// it's ignored rather than failing the whole line/track fetch over
+		// what's purely a "nice to have" review aid.
+		if err := json.Unmarshal([]byte(l.ScrapeContext), &ctx); err == nil {
+			dto.ScrapeContext = &ctx
+		}
+	}
+	return dto
 }
 
 // detectLanguage makes a best-effort guess ("ja" or "") by checking whether

@@ -77,6 +77,7 @@ func NewRouter(s *Server, allowedOrigin, staticDir string) *gin.Engine {
 
 		api.POST("/tracks/:id/scrape", s.handleScrapeTrack)
 		api.POST("/tracks/:id/align", s.handleAlignTrack)
+		api.POST("/tracks/:id/ai-reference", s.handleGetAIReference)
 	}
 
 	if staticDir != "" {

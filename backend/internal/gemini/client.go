@@ -39,7 +39,24 @@ func New(apiKey, model string) *Client {
 	}
 }
 
-const maxAttempts = 3
+// maxAttempts was 3 with a ~1-3s linear backoff — nowhere near enough
+// headroom for a bulk caller (e.g. handleGetAIReference translating a whole
+// song's worth of lines at once) hammering the free tier's rate limit: a
+// burst of concurrent requests exhausts it almost immediately, and 3 short
+// retries all land inside that same still-exhausted window.
+//
+// A much longer backoff (6 attempts, up to ~60s total) was tried and then
+// walked back after live testing showed it doesn't actually help: a line
+// that's still 429ing after a full minute of waiting isn't recovering from
+// a brief per-minute burst, it's hit a harder cap (most likely the free
+// tier's per-day request quota) that no amount of in-request backoff can
+// wait out — it only made a real failure take a minute to surface instead
+// of a few seconds, for the exact same outcome. This is deliberately closer
+// to the original: enough backoff to smooth over a genuine brief burst,
+// short enough that a harder/longer-lived limit still fails fast so the
+// caller (see ai_reference_handler.go's per-line "failed" reporting and its
+// "coba lagi baris yang gagal" retry) isn't left hanging.
+const maxAttempts = 4
 
 // langNames maps common ISO codes to a display name for the prompt — Gemini
 // understands bare codes fine too, but a name reads more naturally in an
@@ -97,15 +114,25 @@ func (c *Client) Translate(ctx context.Context, text, sourceLang, targetLang str
 			break
 		}
 
-		backoff := time.Duration(attempt) * time.Second
-		backoff += time.Duration(rand.Intn(300)) * time.Millisecond // jitter
 		select {
 		case <-ctx.Done():
 			return "", ctx.Err()
-		case <-time.After(backoff):
+		case <-time.After(exponentialBackoff(attempt)):
 		}
 	}
 	return "", lastErr
+}
+
+// exponentialBackoff doubles each attempt (1s, 2s, 4s for attempts 1-3, ~7s
+// total across all of maxAttempts=4's retries) plus up to 300ms of jitter so
+// a burst of concurrent callers retrying at the same moment doesn't just
+// recreate the same burst on the next attempt. See maxAttempts' doc comment
+// for why this stays short rather than growing to wait out a much longer
+// (e.g. daily) quota window that backoff can't actually shorten.
+func exponentialBackoff(attempt int) time.Duration {
+	backoff := time.Duration(1<<uint(attempt-1)) * time.Second
+	backoff += time.Duration(rand.Intn(300)) * time.Millisecond
+	return backoff
 }
 
 func buildPrompt(text, sourceLang, targetLang string) string {

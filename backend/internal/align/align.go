@@ -26,8 +26,16 @@ var annotationRe = regexp.MustCompile(`^\s*[\[(].*[\])]\s*$`)
 // (like "[Chorus]") are discarded.
 //
 // Strategy, in order of preference:
-//  1. If the cleaned scraped line count matches len(original) exactly,
-//     map 1:1 by position.
+//  0. If scrapedRaw, with only annotation-only lines dropped (blank lines
+//     kept in place), is exactly as long as original AND its blank-line
+//     positions line up with original's instrumental gaps, the source is
+//     already position-aligned line-for-line — map 1:1 by index directly,
+//     blanks included. This is the common case for sources that render one
+//     entry per original line themselves (e.g. utatime.com's ".line-text"
+//     spans, see internal/scrape/utatime.go) — trusting that alignment
+//     beats guessing at it via blocks.
+//  1. Else, if the cleaned (blank-stripped) scraped line count matches
+//     len(original) exactly, map 1:1 by position.
 //  2. Else, if blank-line blocks can be split out on both sides and the
 //     block counts match, align block-by-block, then positionally within
 //     each block.
@@ -39,10 +47,39 @@ var annotationRe = regexp.MustCompile(`^\s*[\[(].*[\])]\s*$`)
 // Cabang C output to always be flagged needs_review, regardless of which
 // strategy produced it.
 func Align(original []string, scrapedRaw []string) []string {
+	result, _ := AlignWithContext(original, scrapedRaw)
+	return result
+}
+
+// Context is the raw scraped line a Context result was actually read from
+// (Matched), plus its immediate neighbors in the scraped source (Prev/Next,
+// empty when there is none). It exists so a caller — the editor UI, in
+// practice — can show a human "here's what the scrape source said around
+// this point" next to a heuristically-aligned line: since none of Align's
+// strategies beyond #0/#1 are verified to be correct (see plan.md's
+// needs_review requirement), surfacing the raw neighborhood lets a person
+// spot a bad guess (e.g. two adjacent original lines mapped to the same
+// scraped line — a merge Align had no way to detect) at a glance instead of
+// having to hunt through the full raw text by hand.
+type Context struct {
+	Prev    string
+	Matched string
+	Next    string
+}
+
+// AlignWithContext does the same mapping as Align, but also returns a
+// Context per original position — see Context's doc comment. Both slices
+// are parallel to original; a position with nothing mapped to it (e.g. an
+// instrumental gap, or scrapedRaw being too short to cover it) gets a
+// zero-value Context.
+func AlignWithContext(original []string, scrapedRaw []string) ([]string, []Context) {
 	result := make([]string, len(original))
+	contexts := make([]Context, len(original))
 	if len(original) == 0 {
-		return result
+		return result, contexts
 	}
+
+	scrapedPositional := trimAnnotationsKeepBlanks(scrapedRaw)
 
 	scrapedBlocks := splitBlocks(scrapedRaw)
 	cleanedFlat := flatten(scrapedBlocks)
@@ -50,17 +87,92 @@ func Align(original []string, scrapedRaw []string) []string {
 	originalBlocks := splitBlocksKeepEmpty(original)
 
 	switch {
+	case blanksLineUp(original, scrapedPositional):
+		copy(result, scrapedPositional)
+		fillContext(contexts, scrapedPositional, identityIndices(original))
+
 	case len(cleanedFlat) == len(original):
 		copy(result, cleanedFlat)
+		fillContext(contexts, cleanedFlat, identityIndices(original))
 
 	case len(scrapedBlocks) == len(originalBlocks) && len(scrapedBlocks) > 0:
-		alignByBlock(result, originalBlocks, scrapedBlocks)
+		idxs := alignByBlock(result, originalBlocks, scrapedBlocks)
+		fillContext(contexts, cleanedFlat, idxs)
 
 	default:
-		alignProportional(result, original, cleanedFlat)
+		idxs := alignProportional(result, original, cleanedFlat)
+		fillContext(contexts, cleanedFlat, idxs)
 	}
 
-	return result
+	return result, contexts
+}
+
+// identityIndices returns, for each position in original, that same
+// position's index into a same-length, position-aligned scraped slice —
+// or -1 for a blank (instrumental gap) position, which never gets a
+// Context. Used by AlignWithContext's strategies 0 and 1, where the
+// mapping is a direct 1:1 copy by index.
+func identityIndices(original []string) []int {
+	idxs := make([]int, len(original))
+	for i, l := range original {
+		if strings.TrimSpace(l) == "" {
+			idxs[i] = -1
+		} else {
+			idxs[i] = i
+		}
+	}
+	return idxs
+}
+
+// fillContext writes contexts[i] from flat[idxs[i]] plus its immediate
+// neighbors, for every i where idxs[i] is a valid index into flat.
+func fillContext(contexts []Context, flat []string, idxs []int) {
+	for i, idx := range idxs {
+		if idx < 0 || idx >= len(flat) {
+			continue
+		}
+		ctx := Context{Matched: flat[idx]}
+		if idx > 0 {
+			ctx.Prev = flat[idx-1]
+		}
+		if idx+1 < len(flat) {
+			ctx.Next = flat[idx+1]
+		}
+		contexts[i] = ctx
+	}
+}
+
+// trimAnnotationsKeepBlanks drops annotation-only lines (see annotationRe)
+// but, unlike splitBlocks, keeps blank lines and their positions rather
+// than treating them purely as block separators to discard. That's what
+// lets the positional strategy in Align compare blank-line positions
+// against original directly.
+func trimAnnotationsKeepBlanks(raw []string) []string {
+	var out []string
+	for _, line := range raw {
+		trimmed := strings.TrimSpace(line)
+		if annotationRe.MatchString(trimmed) {
+			continue
+		}
+		out = append(out, trimmed)
+	}
+	return out
+}
+
+// blanksLineUp reports whether a and b are the same length and have a
+// blank line (after trimming) at exactly the same positions — the signal
+// that b is a genuine position-for-position match with a, not merely a
+// same-length coincidence that would corrupt the 1:1 copy in Align.
+func blanksLineUp(a, b []string) bool {
+	if len(a) != len(b) {
+		return false
+	}
+	for i := range a {
+		if (strings.TrimSpace(a[i]) == "") != (strings.TrimSpace(b[i]) == "") {
+			return false
+		}
+	}
+	return true
 }
 
 // splitBlocks splits raw scraped text into blank-line-delimited blocks,
@@ -132,28 +244,61 @@ func flatten(blocks [][]string) []string {
 	return out
 }
 
-func alignByBlock(result []string, originalBlocks [][]indexedLine, scrapedBlocks [][]string) {
+// alignByBlock fills result and returns, per original position, that
+// position's index into flatten(scrapedBlocks) (i.e. cleanedFlat) — or -1
+// for a position nothing was mapped to. scrapedBlocks are consumed in
+// order, so a running offset (the total length of all prior blocks) turns
+// each block-local index into that same global index.
+func alignByBlock(result []string, originalBlocks [][]indexedLine, scrapedBlocks [][]string) []int {
+	idxs := make([]int, len(result))
+	for i := range idxs {
+		idxs[i] = -1
+	}
+
+	offset := 0
 	for bi, origBlock := range originalBlocks {
 		scrapedBlock := scrapedBlocks[bi]
-		for i, ol := range origBlock {
-			var text string
-			switch {
-			case i < len(scrapedBlock):
-				text = scrapedBlock[i]
-			case len(scrapedBlock) > 0:
-				// Block sizes differ within a matched pair of blocks — fall
-				// back to proportional mapping inside this block rather
-				// than leaving trailing lines empty.
-				text = scrapedBlock[proportionalIndex(i, len(origBlock), len(scrapedBlock))]
-			}
-			result[ol.index] = text
+		if len(scrapedBlock) == 0 {
+			offset += len(scrapedBlock)
+			continue
 		}
+		for i, ol := range origBlock {
+			var local int
+			switch {
+			case len(scrapedBlock) == len(origBlock):
+				// Same size on both sides within this block — exact 1:1,
+				// no rounding involved.
+				local = i
+			default:
+				// Block sizes differ within a matched pair of blocks (e.g.
+				// a scraped translation merges two original lines into
+				// one). Map every position in the block proportionally —
+				// not just the positions past len(scrapedBlock) — so a
+				// merge near the start of the block doesn't leave the
+				// rest of the block copied one index off from where it
+				// should be (which both duplicates a line and lets it
+				// bleed into a position that should hold different
+				// content; see align_test.go's regression case).
+				local = proportionalIndex(i, len(origBlock), len(scrapedBlock))
+			}
+			result[ol.index] = scrapedBlock[local]
+			idxs[ol.index] = offset + local
+		}
+		offset += len(scrapedBlock)
 	}
+
+	return idxs
 }
 
-func alignProportional(result []string, original []string, cleanedFlat []string) {
+// alignProportional fills result and returns, per original position, that
+// position's index into cleanedFlat — or -1 for a blank/unmapped position.
+func alignProportional(result []string, original []string, cleanedFlat []string) []int {
+	idxs := make([]int, len(result))
+	for i := range idxs {
+		idxs[i] = -1
+	}
 	if len(cleanedFlat) == 0 {
-		return
+		return idxs
 	}
 
 	nonEmptyCount := 0
@@ -163,7 +308,7 @@ func alignProportional(result []string, original []string, cleanedFlat []string)
 		}
 	}
 	if nonEmptyCount == 0 {
-		return
+		return idxs
 	}
 
 	seen := 0
@@ -171,9 +316,13 @@ func alignProportional(result []string, original []string, cleanedFlat []string)
 		if strings.TrimSpace(l) == "" {
 			continue
 		}
-		result[i] = cleanedFlat[proportionalIndex(seen, nonEmptyCount, len(cleanedFlat))]
+		idx := proportionalIndex(seen, nonEmptyCount, len(cleanedFlat))
+		result[i] = cleanedFlat[idx]
+		idxs[i] = idx
 		seen++
 	}
+
+	return idxs
 }
 
 // proportionalIndex maps position pos (0-based, out of fromCount total

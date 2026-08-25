@@ -33,6 +33,70 @@ type LineDTO struct {
 	TranslationLang string `json:"translation_lang,omitempty"`
 	Method          string `json:"method"`
 	NeedsReview     bool   `json:"needs_review"`
+	// ScrapeContext surfaces the raw scraped neighborhood a scrape-aligned
+	// Translation/Romanized was actually read from — see db.Line.ScrapeContext
+	// and LineScrapeContextsDTO. Nil until this line has gone through a
+	// scrape+align at least once.
+	ScrapeContext *LineScrapeContextsDTO `json:"scrape_context,omitempty"`
+}
+
+// LineScrapeContextDTO is one field's (Translation's or Romanized's) raw
+// scraped match plus its immediate neighbors in the scraped source text —
+// see internal/align.Context, which this directly mirrors for JSON
+// storage/transport (kept as its own type rather than reusing
+// internal/align.Context so httpapi doesn't need every caller of this DTO
+// to import that package). Prev/Next are "" when there's no neighbor on
+// that side (start/end of the scraped text).
+type LineScrapeContextDTO struct {
+	Prev    string `json:"prev,omitempty"`
+	Matched string `json:"matched,omitempty"`
+	Next    string `json:"next,omitempty"`
+}
+
+// LineScrapeContextsDTO bundles the scraped-neighborhood context for both
+// fields Align can independently populate on a line — Translation from
+// ScrapeSource.RawText, Romanized from ScrapeSource.RawRomanized (only
+// utatime.com sources provide the latter — see internal/scrape/utatime.go).
+// Either may be nil if that field wasn't part of the align call that last
+// touched this line.
+type LineScrapeContextsDTO struct {
+	Translation *LineScrapeContextDTO `json:"translation,omitempty"`
+	Romanized   *LineScrapeContextDTO `json:"romanized,omitempty"`
+	// AI is a machine-translated reference for this line's Original text —
+	// see handleGetAIReference. Unlike Translation/Romanized above (a
+	// heuristic guess at which raw scraped line goes where), this is always
+	// correctly positioned by construction: it's a direct MT call on this
+	// exact line, not an alignment guess — which is the point of it. It
+	// exists specifically so a reviewer who can't read the original lyric's
+	// language still has *something* in their own language to sanity-check
+	// a scrape-derived Translation against, rather than having to trust the
+	// alignment heuristic blind. "" until an AI reference has been
+	// requested for this line.
+	AI string `json:"ai,omitempty"`
+}
+
+// AIReferenceRequest is the body of POST /api/tracks/:id/ai-reference.
+// TargetLang should normally match whatever language the scrape-derived
+// Translation is already in (Line.TranslationLang) so the two are actually
+// comparable — the frontend is expected to infer that rather than asking
+// the user. LineIDs empty means every line with non-empty Original.
+type AIReferenceRequest struct {
+	TargetLang string `json:"target_lang" binding:"required"`
+	LineIDs    []uint `json:"line_ids"`
+}
+
+// AIReferenceResponse reports the outcome of an AI-reference batch — same
+// shape as TranslateResponse, reused here rather than shared with it since
+// the two endpoints' semantics differ enough (this one never touches
+// Translation/Method) to keep confusing them.
+type AIReferenceResponse struct {
+	Lines       []LineDTO `json:"lines"`
+	CacheHits   int       `json:"cache_hits"`
+	CacheMisses int       `json:"cache_misses"`
+	Failed      []struct {
+		LineID uint   `json:"line_id"`
+		Error  string `json:"error"`
+	} `json:"failed,omitempty"`
 }
 
 // TrackDTO is a full track with its lines, as returned by GET /api/tracks/:id

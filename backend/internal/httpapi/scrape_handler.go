@@ -1,6 +1,7 @@
 package httpapi
 
 import (
+	"encoding/json"
 	"errors"
 	"net/http"
 	"strings"
@@ -128,14 +129,15 @@ func (s *Server) handleAlignTrack(c *gin.Context) {
 		originalTexts[i] = l.Original
 	}
 
-	alignedTranslation := align.Align(originalTexts, strings.Split(source.RawText, "\n"))
+	alignedTranslation, translationContexts := align.AlignWithContext(originalTexts, strings.Split(source.RawText, "\n"))
 
 	// Romanization is optional (only utatime.com sources have it — see
 	// internal/scrape/utatime.go) and aligned independently: its line
 	// breakdown doesn't necessarily match the translation's.
 	var alignedRomanized []string
+	var romanizedContexts []align.Context
 	if source.RawRomanized != "" {
-		alignedRomanized = align.Align(originalTexts, strings.Split(source.RawRomanized, "\n"))
+		alignedRomanized, romanizedContexts = align.AlignWithContext(originalTexts, strings.Split(source.RawRomanized, "\n"))
 	}
 
 	resp := AlignTrackResponse{Lines: []LineDTO{}}
@@ -164,6 +166,25 @@ func (s *Server) handleAlignTrack(c *gin.Context) {
 			line.RomanizedSource = "scrape"
 		}
 		line.NeedsReview = true
+
+		// Snapshot this run's raw-scraped neighborhood for the editor's
+		// side-by-side review UI — see db.Line.ScrapeContext. Replaces
+		// whatever was there before wholesale (rather than merging field by
+		// field) so it can never show a neighborhood left over from a
+		// different scrape source than the one this line's text actually
+		// came from.
+		ctxs := LineScrapeContextsDTO{
+			Translation: toScrapeContextDTO(translationContexts[i]),
+		}
+		if romanizedContexts != nil {
+			ctxs.Romanized = toScrapeContextDTO(romanizedContexts[i])
+		}
+		if ctxs.Translation != nil || ctxs.Romanized != nil {
+			if encoded, err := json.Marshal(ctxs); err == nil {
+				line.ScrapeContext = string(encoded)
+			}
+		}
+
 		if err := s.db.Save(&line).Error; err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to save aligned line: " + err.Error()})
 			return
@@ -172,4 +193,14 @@ func (s *Server) handleAlignTrack(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, resp)
+}
+
+// toScrapeContextDTO converts an align.Context into its JSON-storable DTO
+// shape, or nil when nothing was actually matched (a zero-value Context —
+// e.g. an instrumental gap, or scrapedRaw too short to cover this line).
+func toScrapeContextDTO(ctx align.Context) *LineScrapeContextDTO {
+	if ctx.Matched == "" && ctx.Prev == "" && ctx.Next == "" {
+		return nil
+	}
+	return &LineScrapeContextDTO{Prev: ctx.Prev, Matched: ctx.Matched, Next: ctx.Next}
 }
