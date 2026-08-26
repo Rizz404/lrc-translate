@@ -77,7 +77,15 @@ func NewRouter(s *Server, allowedOrigin, staticDir string) *gin.Engine {
 
 		api.POST("/tracks/:id/scrape", s.handleScrapeTrack)
 		api.POST("/tracks/:id/align", s.handleAlignTrack)
-		api.POST("/tracks/:id/ai-reference", s.handleGetAIReference)
+		// KISS 2026-08-26: route disabled, not deleted — see
+		// docs/backend/fixes-2026-08-25-scrape-alignment.md point 6 for what
+		// this endpoint does. With translate now prioritizing Gemini/
+		// LibreTranslate over scrape (main.go), and the frontend's
+		// "Bandingkan dengan AI" trigger commented out (EditorPage.tsx),
+		// this handler (ai_reference_handler.go, left intact) has no caller
+		// left; keeping it registered would leave a dead-but-reachable API
+		// surface. Uncomment this line to re-enable.
+		// api.POST("/tracks/:id/ai-reference", s.handleGetAIReference)
 	}
 
 	if staticDir != "" {

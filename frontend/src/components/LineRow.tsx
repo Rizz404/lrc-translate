@@ -6,7 +6,13 @@ import type { Line } from "../api/types";
 import { api } from "../api/client";
 import { useEditorStore } from "../store/editorStore";
 import { MethodBadge } from "./MethodBadge";
-import { ScrapeReference } from "./ScrapeReference";
+// KISS 2026-08-26: ScrapeReference (prev/matched/next + AI chips) disabled,
+// not deleted — see docs/frontend/fixes-2026-08-25-scrape-alignment.md for
+// what it did. Translate now prioritizes Gemini/LibreTranslate over scrape
+// (backend/cmd/server/main.go), so the amber needs_review border + the
+// disclaimer banner in EditorPage.tsx are the review aid going forward.
+// Uncomment this import + the two usages below to re-enable.
+// import { ScrapeReference } from "./ScrapeReference";
 
 interface Props {
   trackId: string;
@@ -117,21 +123,23 @@ export function LineRow({ trackId, line }: Props) {
     onError: (err: Error) => setError(err.message),
   });
 
+  // KISS 2026-08-26: pickLyric/pickTranslation only existed as ScrapeReference's
+  // onPick handlers (see import comment above) — commented out alongside it.
   // Click-to-apply handlers for ScrapeReference's chips — same "pick
   // scrape's suggestion or type your own" the textareas already support via
   // free typing, just applied immediately instead of waiting for blur/debounce
   // since a click is already an explicit, deliberate choice.
-  function pickLyric(text: string) {
-    setLyric(text);
-    const baseline = usingRomanized ? line.romanized : line.original;
-    if (text !== baseline) {
-      updateMutation.mutate(usingRomanized ? { romanized: text } : { original: text });
-    }
-  }
-  function pickTranslation(text: string) {
-    setTranslation(text);
-    if (text !== line.translation) updateMutation.mutate({ translation: text });
-  }
+  // function pickLyric(text: string) {
+  //   setLyric(text);
+  //   const baseline = usingRomanized ? line.romanized : line.original;
+  //   if (text !== baseline) {
+  //     updateMutation.mutate(usingRomanized ? { romanized: text } : { original: text });
+  //   }
+  // }
+  // function pickTranslation(text: string) {
+  //   setTranslation(text);
+  //   if (text !== line.translation) updateMutation.mutate({ translation: text });
+  // }
 
   function saveLyricIfChanged() {
     const patch: { original?: string; romanized?: string; timestamp?: string } = {};
@@ -190,9 +198,11 @@ export function LineRow({ trackId, line }: Props) {
           className={`w-full resize-none overflow-hidden rounded-lg bg-slate-800/30 px-3 py-2.5 leading-snug text-slate-100 outline-none transition-colors placeholder:text-slate-600 hover:bg-slate-800/50 focus:bg-slate-800/70 focus:ring-2 focus:ring-violet-500/15 ${AUTOSIZE_CLASS}`}
         />
 
+        {/* KISS 2026-08-26: disabled, see import comment above.
         {usingRomanized && line.scrape_context?.romanized && (
           <ScrapeReference context={line.scrape_context.romanized} current={lyric} onPick={pickLyric} />
         )}
+        */}
 
         <div className="flex flex-col gap-1.5 sm:flex-row sm:items-center sm:gap-2">
           <textarea
@@ -221,6 +231,7 @@ export function LineRow({ trackId, line }: Props) {
           </div>
         </div>
 
+        {/* KISS 2026-08-26: disabled, see import comment above.
         {(line.scrape_context?.translation || line.scrape_context?.ai) && (
           <ScrapeReference
             context={line.scrape_context.translation ?? {}}
@@ -229,6 +240,7 @@ export function LineRow({ trackId, line }: Props) {
             onPick={pickTranslation}
           />
         )}
+        */}
 
         {error && <span className="px-1 text-xs text-rose-400">{error}</span>}
       </div>

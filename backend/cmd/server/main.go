@@ -37,17 +37,54 @@ func main() {
 
 	lrclibClient := lrclib.New(cfg.LRCLIBBaseURL)
 
+	// KISS priority (2026-08-26): Gemini (LLM, natural/idiomatic output) is
+	// preferred over LibreTranslate (literal MT) whenever a key is actually
+	// available; scrape+align is a separate, manual, last-resort feature
+	// entirely outside this switch (see scrape_handler.go). This is a
+	// startup-time default only, not a runtime fallback — if Gemini starts
+	// failing mid-session (e.g. daily quota exhausted, see
+	// docs/backend/fixes-2026-08-25-scrape-alignment.md point 8), recovery
+	// is TRANSLATE_PROVIDER=libretranslate + restart, not an automatic retry
+	// with the other provider.
 	var translator httpapi.Translator
+	// resolvedProvider is the *actual* provider picked, as opposed to
+	// cfg.TranslateProvider which can be "" (auto). Passed to NewServer
+	// below instead of the raw config value so the translation cache stays
+	// correctly namespaced per real provider even when auto-resolved (see
+	// Server.translatorID's doc comment in router.go) — otherwise two
+	// servers auto-resolving to different providers (e.g. one with
+	// GEMINI_API_KEY set, one without) would both use the "" cache
+	// namespace and could serve each other's stale results.
+	var resolvedProvider string
 	switch cfg.TranslateProvider {
 	case "gemini":
 		if cfg.GeminiAPIKey == "" {
 			log.Fatalf("TRANSLATE_PROVIDER=gemini but GEMINI_API_KEY is not set")
 		}
 		translator = gemini.New(cfg.GeminiAPIKey, cfg.GeminiModel)
-	case "libretranslate", "":
+		resolvedProvider = "gemini"
+	case "libretranslate":
 		translator = libretranslate.New(cfg.LibreTranslateURL, cfg.LibreTranslateKey)
+		resolvedProvider = "libretranslate"
+	case "":
+		// Auto-resolve: prefer gemini when a key is present (doesn't fail
+		// startup like the explicit "gemini" case above would without one),
+		// otherwise fall back to libretranslate — same as before this
+		// priority change when no key is configured.
+		if cfg.GeminiAPIKey != "" {
+			translator = gemini.New(cfg.GeminiAPIKey, cfg.GeminiModel)
+			resolvedProvider = "gemini"
+		} else {
+			translator = libretranslate.New(cfg.LibreTranslateURL, cfg.LibreTranslateKey)
+			resolvedProvider = "libretranslate"
+		}
 	default:
 		log.Fatalf("unknown TRANSLATE_PROVIDER %q (expected \"libretranslate\" or \"gemini\")", cfg.TranslateProvider)
+	}
+	if cfg.TranslateProvider == "" {
+		log.Printf("translate provider: %s (auto-resolved, TRANSLATE_PROVIDER unset)", resolvedProvider)
+	} else {
+		log.Printf("translate provider: %s", resolvedProvider)
 	}
 
 	log.Println("loading Japanese romanization dictionary…")
@@ -56,7 +93,7 @@ func main() {
 		log.Fatalf("failed to init romanizer: %v", err)
 	}
 
-	server := httpapi.NewServer(gdb, lrclibClient, translator, cfg.TranslateProvider, romanizer)
+	server := httpapi.NewServer(gdb, lrclibClient, translator, resolvedProvider, romanizer)
 	router := httpapi.NewRouter(server, cfg.AllowedOrigin, cfg.StaticDir)
 
 	log.Printf("listening on :%s (db driver=%s dsn=%s)", cfg.Port, cfg.DBDriver, cfg.DBDSN)

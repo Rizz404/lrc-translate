@@ -21,6 +21,12 @@ type Config struct {
 	// or "gemini" (Google AI Studio — needs GeminiAPIKey, gives much more
 	// natural/idiomatic output since it's an LLM that can be steered by a
 	// prompt, e.g. "translate like a song lyric, not word-for-word").
+	//
+	// KISS priority (2026-08-26): left unset ("") it's resolved in main.go
+	// to auto-prefer gemini when GeminiAPIKey is present, else libretranslate
+	// — see main.go's translator-construction switch. Set explicitly to
+	// force one provider regardless of key presence (e.g. to recover from a
+	// Gemini daily-quota exhaustion by forcing libretranslate + restart).
 	TranslateProvider string
 	GeminiAPIKey      string
 	GeminiModel       string
@@ -38,7 +44,7 @@ func Load() Config {
 		LibreTranslateKey: getEnv("LIBRETRANSLATE_API_KEY", ""),
 		AllowedOrigin:     getEnv("ALLOWED_ORIGIN", "http://localhost:5173"),
 		StaticDir:         getEnv("STATIC_DIR", ""),
-		TranslateProvider: getEnv("TRANSLATE_PROVIDER", "libretranslate"),
+		TranslateProvider: getEnv("TRANSLATE_PROVIDER", ""),
 		GeminiAPIKey:      getEnv("GEMINI_API_KEY", ""),
 		GeminiModel:       getEnv("GEMINI_MODEL", "gemini-2.5-flash"),
 	}

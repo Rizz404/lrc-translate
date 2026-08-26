@@ -71,8 +71,16 @@ export function ScrapePanel({ trackId }: Props) {
           >
             <div className="flex flex-col gap-3 border-t border-slate-800/70 px-4 py-4">
               <p className="text-xs text-slate-500">
-                Hasil alignment selalu ditandai <em>"perlu dicek"</em> — posisinya cuma perkiraan,
-                bukan hasil verifikasi.
+                {/* KISS 2026-08-26: strengthened from a soft "perlu dicek" —
+                    translate (tombol di atas) sudah memprioritaskan Gemini/
+                    LibreTranslate; scrape ini opsi terakhir, cuma dipakai
+                    kalau perlu terjemahan siap-pakai dari sumber luar. */}
+                Opsi terakhir, bukan yang pertama dicoba — pakai Translate (Gemini/LibreTranslate) di
+                atas dulu. Alignment di sini cuma perkiraan posisi, dan pernah salah pasang baris tanpa
+                kelihatan jelas per-baris (baris individual tetap masuk akal, cuma ketuker sama baris
+                asli yang salah — lihat riwayat bug di{" "}
+                <code className="text-slate-400">docs/backend/fixes-2026-08-25-scrape-alignment.md</code>).
+                Hasilnya selalu ditandai <em>"perlu dicek"</em>, bukan hasil verifikasi.
               </p>
 
               <div className="flex flex-wrap items-center gap-2">

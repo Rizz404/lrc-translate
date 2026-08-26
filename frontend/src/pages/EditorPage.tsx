@@ -2,7 +2,9 @@ import { useEffect, useLayoutEffect, useState } from "react";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { useNavigate, useParams } from "react-router-dom";
 import { motion } from "motion/react";
-import { AlertTriangle, ArrowLeft, Eraser, Loader2, RotateCcw, Sparkles } from "lucide-react";
+import { AlertTriangle, ArrowLeft, Eraser, Loader2, RotateCcw } from "lucide-react";
+// Sparkles dropped from the import above — it was only used by the
+// "Bandingkan dengan AI" button, commented out below (KISS 2026-08-26).
 import { api } from "../api/client";
 import { useEditorStore } from "../store/editorStore";
 import { LineRow } from "../components/LineRow";
@@ -55,6 +57,12 @@ export function EditorPage() {
     },
   });
 
+  // KISS 2026-08-26: disabled, not deleted — see
+  // docs/backend/fixes-2026-08-25-scrape-alignment.md point 6 and
+  // docs/frontend/fixes-2026-08-25-scrape-alignment.md for what this did and
+  // why. Its backend route is also commented out (router.go). Uncomment
+  // this block + the button/status JSX further down (and the route) to
+  // re-enable.
   // On-demand MT reference for every needs_review line (see
   // ScrapeReference.tsx's "AI" chip) — a same-language sanity check for a
   // reviewer who can't read the original lyric's language, so a wrong
@@ -69,19 +77,19 @@ export function EditorPage() {
   // ai_reference_handler.go's aiReferenceConcurrency), which a narrower,
   // later retry clears more reliably than hammering everything again at
   // once would.
-  const aiReferenceMutation = useMutation({
-    mutationFn: (lineIds?: number[]) => {
-      const needsReview = track!.lines.filter((l) => l.needs_review);
-      const targetLang = needsReview.find((l) => l.translation_lang)?.translation_lang || "en";
-      return api.aiReference(track!.id, {
-        target_lang: targetLang,
-        line_ids: lineIds ?? needsReview.map((l) => l.id),
-      });
-    },
-    onSuccess: (resp) => {
-      for (const line of resp.lines) patchLine(line.id, line);
-    },
-  });
+  // const aiReferenceMutation = useMutation({
+  //   mutationFn: (lineIds?: number[]) => {
+  //     const needsReview = track!.lines.filter((l) => l.needs_review);
+  //     const targetLang = needsReview.find((l) => l.translation_lang)?.translation_lang || "en";
+  //     return api.aiReference(track!.id, {
+  //       target_lang: targetLang,
+  //       line_ids: lineIds ?? needsReview.map((l) => l.id),
+  //     });
+  //   },
+  //   onSuccess: (resp) => {
+  //     for (const line of resp.lines) patchLine(line.id, line);
+  //   },
+  // });
 
   function handleResetAllLines() {
     if (
@@ -178,13 +186,30 @@ export function EditorPage() {
       {/* One summary disclaimer instead of repeating "· perlu dicek" on every
           single scrape-sourced badge below (was pure noise on a page full of
           scraped lines) — rows that need review still get an amber border,
-          see LineRow.tsx. */}
+          see LineRow.tsx.
+          KISS 2026-08-26: copy strengthened from a soft "perlu dicek" into
+          an explicit warning, since scrape+align has genuinely produced
+          silently-misaligned lines before (see
+          docs/backend/fixes-2026-08-25-scrape-alignment.md point 3 — ~30/61
+          lines wrong in one real song, most not obviously wrong per-line).
+          The "Bandingkan dengan AI" button that used to sit here is disabled
+          (see aiReferenceMutation above) now that translate prioritizes
+          Gemini/LibreTranslate over scrape, making scrape a rarer, opt-in
+          last resort rather than the primary path this banner needs to
+          actively help recover from. */}
       {needsReviewCount > 0 && (
         <div className="mt-3 flex flex-col gap-2 rounded-lg border border-amber-500/30 bg-amber-500/[0.06] px-3 py-2 text-xs text-amber-300">
           <div className="flex flex-wrap items-center gap-2">
             <AlertTriangle className="size-3.5 shrink-0" />
-            <span>{needsReviewCount} baris hasil scrape perlu dicek manual — ditandai border kuning di bawah.</span>
+            <span>
+              {needsReviewCount} baris hasil scrape+align perlu dicek manual — posisinya cuma perkiraan,
+              bisa salah pasangan dengan baris aslinya walau tiap baris kelihatan masuk akal sendiri.
+              Ditandai border kuning di bawah, cek satu-satu.
+            </span>
           </div>
+          {/* KISS 2026-08-26: "Bandingkan dengan AI" disabled, not deleted —
+              see aiReferenceMutation comment above and
+              backend/internal/httpapi/router.go (route also commented out).
           <div className="flex flex-wrap items-center gap-2 pl-[22px]">
             <button
               onClick={() => aiReferenceMutation.mutate(undefined)}
@@ -225,6 +250,7 @@ export function EditorPage() {
               </button>
             </div>
           )}
+          */}
         </div>
       )}
 
