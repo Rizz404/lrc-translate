@@ -63,7 +63,11 @@ services:
       - libretranslate
 
   libretranslate:
-    image: libretranslate/libretranslate
+    # Fully qualified on purpose: some setups (e.g. Podman on Fedora, whose
+    # default unqualified-search-registries tries registry.fedoraproject.org
+    # before docker.io) resolve a bare "libretranslate/libretranslate" to the
+    # wrong registry and fail with "manifest unknown".
+    image: docker.io/libretranslate/libretranslate
     restart: unless-stopped
     # The named volume below is created fresh by Docker with root:root
     # ownership, but the image runs as a non-root "libretranslate" user by
