@@ -23,11 +23,16 @@ import (
 	"lrc-translate/backend/internal/llmprompt"
 )
 
+// defaultBaseURL is the real Gemini API host. Overridden by tests (same
+// package, unexported field) to point at an httptest server instead.
+const defaultBaseURL = "https://generativelanguage.googleapis.com"
+
 // Client talks to the Gemini generateContent API.
 type Client struct {
-	apiKey string
-	model  string
-	http   *http.Client
+	apiKey  string
+	model   string
+	http    *http.Client
+	baseURL string
 }
 
 // New creates a Client. model may be empty to use a sane default.
@@ -36,8 +41,9 @@ func New(apiKey, model string) *Client {
 		model = "gemini-2.5-flash"
 	}
 	return &Client{
-		apiKey: apiKey,
-		model:  model,
+		apiKey:  apiKey,
+		model:   model,
+		baseURL: defaultBaseURL,
 		// LLM calls are slower than a plain NMT lookup, especially under
 		// free-tier rate limiting — give it real room before giving up.
 		http: &http.Client{Timeout: 30 * time.Second},
@@ -83,9 +89,9 @@ func (c *Client) Translate(ctx context.Context, text, sourceLang, targetLang str
 
 	var lastErr error
 	for attempt := 1; attempt <= maxAttempts; attempt++ {
-		result, retryable, err := c.doTranslate(ctx, body)
+		text, retryable, err := c.doRequest(ctx, body)
 		if err == nil {
-			return result, nil
+			return strings.Trim(text, "\"“”"), nil
 		}
 		lastErr = err
 		if !retryable || attempt == maxAttempts {
@@ -101,6 +107,73 @@ func (c *Client) Translate(ctx context.Context, text, sourceLang, targetLang str
 	return "", lastErr
 }
 
+// TranslateBatch sends every targeted line of a song through Gemini in one
+// request, letting the model use the whole song as context instead of
+// guessing at each line in isolation — see llmprompt.BuildBatch. Retries
+// with the same backoff as Translate, plus treats a count-mismatched
+// response (see llmprompt.ParseBatch) as retryable: temperature > 0 means a
+// different sample has a real shot at following the "JSON array only"
+// instruction, so it's worth another attempt rather than failing the whole
+// batch outright.
+func (c *Client) TranslateBatch(ctx context.Context, lines []string, sourceLang, targetLang string) ([]string, error) {
+	if len(lines) == 0 {
+		return nil, nil
+	}
+	prompt := llmprompt.BuildBatch(lines, sourceLang, targetLang)
+
+	body, err := json.Marshal(map[string]any{
+		"contents": []map[string]any{
+			{"parts": []map[string]string{{"text": prompt}}},
+		},
+		"generationConfig": map[string]any{
+			"temperature":     0.3,
+			"maxOutputTokens": batchMaxOutputTokens(len(lines)),
+		},
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	var lastErr error
+	for attempt := 1; attempt <= maxAttempts; attempt++ {
+		text, retryable, err := c.doRequest(ctx, body)
+		if err == nil {
+			out, parseErr := llmprompt.ParseBatch(text, len(lines))
+			if parseErr == nil {
+				return out, nil
+			}
+			err = parseErr
+			retryable = true
+		}
+		lastErr = err
+		if !retryable || attempt == maxAttempts {
+			break
+		}
+
+		select {
+		case <-ctx.Done():
+			return nil, ctx.Err()
+		case <-time.After(exponentialBackoff(attempt)):
+		}
+	}
+	return nil, lastErr
+}
+
+// batchMaxOutputTokens scales the output budget with how many lines are in
+// the batch — a single line's worth (~300, see Translate's call above)
+// times the count, floored so a tiny batch still gets real headroom and
+// capped so one request can't demand an unreasonably large generation.
+func batchMaxOutputTokens(n int) int {
+	tokens := 300 * n
+	if tokens < 1024 {
+		return 1024
+	}
+	if tokens > 8192 {
+		return 8192
+	}
+	return tokens
+}
+
 // exponentialBackoff doubles each attempt (1s, 2s, 4s for attempts 1-3, ~7s
 // total across all of maxAttempts=4's retries) plus up to 300ms of jitter so
 // a burst of concurrent callers retrying at the same moment doesn't just
@@ -113,8 +186,11 @@ func exponentialBackoff(attempt int) time.Duration {
 	return backoff
 }
 
-func (c *Client) doTranslate(ctx context.Context, body []byte) (result string, retryable bool, err error) {
-	url := fmt.Sprintf("https://generativelanguage.googleapis.com/v1beta/models/%s:generateContent", c.model)
+// doRequest posts body to the generateContent endpoint and returns the
+// first candidate's raw text (untrimmed of surrounding quotes — Translate
+// and TranslateBatch each handle that differently).
+func (c *Client) doRequest(ctx context.Context, body []byte) (text string, retryable bool, err error) {
+	url := fmt.Sprintf("%s/v1beta/models/%s:generateContent", c.baseURL, c.model)
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost, url, bytes.NewReader(body))
 	if err != nil {
 		return "", false, err
@@ -152,9 +228,7 @@ func (c *Client) doTranslate(ctx context.Context, body []byte) (result string, r
 			}
 			return "", false, fmt.Errorf("gemini: no translation returned (finishReason=%s)", reason)
 		}
-		translated := strings.TrimSpace(parsed.Candidates[0].Content.Parts[0].Text)
-		translated = strings.Trim(translated, "\"“”")
-		return translated, false, nil
+		return strings.TrimSpace(parsed.Candidates[0].Content.Parts[0].Text), false, nil
 
 	case resp.StatusCode == http.StatusTooManyRequests:
 		return "", true, fmt.Errorf("gemini: rate limited (429)")

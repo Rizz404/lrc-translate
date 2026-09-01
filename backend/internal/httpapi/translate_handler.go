@@ -7,26 +7,12 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
-	"sync"
 
 	"github.com/gin-gonic/gin"
 	"gorm.io/gorm"
 
 	appdb "lrc-translate/backend/internal/db"
 )
-
-// Batch translate calls are throttled so one big track doesn't hog the
-// LibreTranslate instance. In this deployment LibreTranslate is self-hosted
-// on the internal Docker network (see docker-compose.yml) rather than a
-// shared public/rate-limited endpoint, so this isn't about being polite to
-// someone else's API — it's bounded by real CPU: LibreTranslate does
-// CPU-only neural MT (no GPU), and on a shared host already running several
-// other containers, pushing concurrency higher than the CPU headroom you
-// actually have just causes contention — each request gets slower, more of
-// them blow past the client timeout (see libretranslate/client.go) and
-// retry, which adds even more load. Tune this alongside LibreTranslate's own
-// LT_THREADS (see docker-compose.yml comment) so the two aren't mismatched.
-const maxConcurrentTranslations = 3
 
 // POST /api/tracks/:id/translate { target_lang, line_ids?, source? }
 func (s *Server) handleTranslateTrack(c *gin.Context) {
@@ -68,13 +54,23 @@ func (s *Server) handleTranslateTrack(c *gin.Context) {
 
 	type outcome struct {
 		translated string
-		cacheHit   bool
 		err        error
 	}
 	outcomes := make([]outcome, len(targets))
 
-	sem := make(chan struct{}, maxConcurrentTranslations)
-	var wg sync.WaitGroup
+	// queued is one line lined up for a TranslateBatch call: idx is its
+	// position in targets/outcomes, so a batch's results (returned in the
+	// same order they were sent) can be written back to the right line.
+	type queued struct {
+		idx  int
+		text string
+	}
+	// Grouped by source language rather than one call for the whole track,
+	// since TranslateSourceScrape lines can each carry their own detected
+	// language (see below) — almost always just one group in practice
+	// (TranslateSourceOriginal always shares trackLang), so this is usually
+	// exactly one TranslateBatch call for the entire track.
+	groups := map[string][]queued{}
 	for i, line := range targets {
 		if line.Original == "" {
 			continue
@@ -98,16 +94,31 @@ func (s *Server) handleTranslateTrack(c *gin.Context) {
 			continue
 		}
 
-		wg.Add(1)
-		sem <- struct{}{}
-		go func(i int, text, lang string) {
-			defer wg.Done()
-			defer func() { <-sem }()
-			translated, cacheHit, err := s.translateOneCached(c.Request.Context(), text, lang, req.TargetLang)
-			outcomes[i] = outcome{translated: translated, cacheHit: cacheHit, err: err}
-		}(i, text, lang)
+		groups[lang] = append(groups[lang], queued{idx: i, text: text})
 	}
-	wg.Wait()
+
+	// One TranslateBatch call per source-language group, so an LLM backend
+	// sees the whole song (or at least the whole group) together as context
+	// instead of the old one-request-per-line design — see
+	// llmprompt.BuildBatch and docs/backend/fixes-2026-08-31-batch-translate-context.md
+	// for why translating each line blind to its neighbors was a problem.
+	for lang, items := range groups {
+		texts := make([]string, len(items))
+		for j, it := range items {
+			texts[j] = it.text
+		}
+
+		translated, err := s.translator.TranslateBatch(c.Request.Context(), texts, lang, req.TargetLang)
+		if err != nil {
+			for _, it := range items {
+				outcomes[it.idx] = outcome{err: err}
+			}
+			continue
+		}
+		for j, it := range items {
+			outcomes[it.idx] = outcome{translated: translated[j]}
+		}
+	}
 
 	resp := TranslateResponse{Lines: []LineDTO{}}
 	for i, line := range targets {
@@ -121,12 +132,6 @@ func (s *Server) handleTranslateTrack(c *gin.Context) {
 				Error  string `json:"error"`
 			}{LineID: line.ID, Error: o.err.Error()})
 			continue
-		}
-
-		if o.cacheHit {
-			resp.CacheHits++
-		} else {
-			resp.CacheMisses++
 		}
 
 		line.Translation = o.translated

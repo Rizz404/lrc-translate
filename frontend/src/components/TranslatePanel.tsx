@@ -193,7 +193,7 @@ export function TranslatePanel({ trackId }: Props) {
           animate={{ opacity: 1 }}
           className="text-xs text-slate-500"
         >
-          {translateMutation.data.cache_hits} dari cache, {translateMutation.data.cache_misses} baru
+          {translateMutation.data.lines.length} baris diterjemahkan
           {translateMutation.data.failed?.length ? `, ${translateMutation.data.failed.length} gagal` : ""}
         </motion.span>
       )}

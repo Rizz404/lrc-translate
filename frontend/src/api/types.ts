@@ -104,8 +104,6 @@ export interface TranslateRequest {
 
 export interface TranslateResponse {
   lines: Line[];
-  cache_hits: number;
-  cache_misses: number;
   failed?: { line_id: number; error: string }[];
 }
 

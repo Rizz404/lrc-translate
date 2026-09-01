@@ -32,10 +32,11 @@ const aiReferenceConcurrency = 1
 // can't read the source language has no way to catch a wrong guess that
 // isn't an exact duplicate. This gives them a same-language (their target
 // language) reference to compare against instead, without touching
-// Translation/Method/NeedsReview at all — purely additive, same reuse of
-// translateOneCached's caching as handleTranslateTrack, so re-running this
-// (e.g. after fixing a few lines by hand) doesn't re-spend API calls on
-// lines whose Original text hasn't changed.
+// Translation/Method/NeedsReview at all — purely additive, using
+// translateOneCached's per-line caching (handleTranslateTrack no longer
+// does — see TranslateResponse's doc comment) so re-running this (e.g.
+// after fixing a few lines by hand) doesn't re-spend API calls on lines
+// whose Original text hasn't changed.
 func (s *Server) handleGetAIReference(c *gin.Context) {
 	track, err := s.loadTrack(c.Param("id"))
 	if err != nil {

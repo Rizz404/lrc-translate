@@ -90,6 +90,81 @@ func TestTranslate_DoesNotRetryOn400(t *testing.T) {
 	}
 }
 
+func TestTranslateBatch_SucceedsFirstTry(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		json.NewEncoder(w).Encode(map[string][]string{"translatedText": {"halo", "dunia"}})
+	}))
+	defer srv.Close()
+
+	c := New(srv.URL, "")
+	got, err := c.TranslateBatch(context.Background(), []string{"hello", "world"}, "en", "id")
+	if err != nil {
+		t.Fatalf("TranslateBatch returned error: %v", err)
+	}
+	want := []string{"halo", "dunia"}
+	if len(got) != len(want) || got[0] != want[0] || got[1] != want[1] {
+		t.Errorf("got %v, want %v", got, want)
+	}
+}
+
+func TestTranslateBatch_ErrorsOnCountMismatch(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		json.NewEncoder(w).Encode(map[string][]string{"translatedText": {"halo"}})
+	}))
+	defer srv.Close()
+
+	c := New(srv.URL, "")
+	_, err := c.TranslateBatch(context.Background(), []string{"hello", "world"}, "en", "id")
+	if err == nil {
+		t.Fatal("expected an error for a count mismatch, got nil")
+	}
+}
+
+func TestTranslateBatch_RetriesOn429ThenSucceeds(t *testing.T) {
+	var attempts int32
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if atomic.AddInt32(&attempts, 1) < 3 {
+			w.WriteHeader(http.StatusTooManyRequests)
+			return
+		}
+		json.NewEncoder(w).Encode(map[string][]string{"translatedText": {"ok"}})
+	}))
+	defer srv.Close()
+
+	c := New(srv.URL, "")
+	got, err := c.TranslateBatch(context.Background(), []string{"hi"}, "en", "id")
+	if err != nil {
+		t.Fatalf("TranslateBatch returned error: %v", err)
+	}
+	if len(got) != 1 || got[0] != "ok" {
+		t.Errorf("got %v, want [ok]", got)
+	}
+	if attempts != 3 {
+		t.Errorf("expected 3 attempts (2 retries), got %d", attempts)
+	}
+}
+
+func TestTranslateBatch_EmptyInputReturnsNilWithoutRequest(t *testing.T) {
+	called := false
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		called = true
+		json.NewEncoder(w).Encode(map[string][]string{"translatedText": {}})
+	}))
+	defer srv.Close()
+
+	c := New(srv.URL, "")
+	got, err := c.TranslateBatch(context.Background(), nil, "en", "id")
+	if err != nil {
+		t.Fatalf("TranslateBatch returned error: %v", err)
+	}
+	if got != nil {
+		t.Errorf("got %v, want nil", got)
+	}
+	if called {
+		t.Error("expected no HTTP request for an empty batch")
+	}
+}
+
 func TestTranslate_GivesUpAfterMaxAttempts(t *testing.T) {
 	var attempts int32
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {

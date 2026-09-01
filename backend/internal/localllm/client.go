@@ -28,6 +28,14 @@ type Client struct {
 	apiKey  string
 	model   string
 	http    *http.Client
+	// httpBatch is used for TranslateBatch instead of http's 120s timeout.
+	// A batch request runs the reasoning-model overhead described below
+	// once for the whole song instead of once per line (see TranslateBatch's
+	// doc comment), but that one request still has to finish generating
+	// every line's worth of content — and hidden reasoning — before
+	// returning, which routinely runs past 120s on constrained local
+	// hardware. See docs/backend/fixes-2026-08-31-batch-translate-context.md.
+	httpBatch *http.Client
 }
 
 // New creates a Client. apiKey may be empty for a server that doesn't
@@ -43,7 +51,8 @@ func New(baseURL, apiKey, model string) *Client {
 		// maxTokens below) can take a good while to work through its hidden
 		// reasoning before ever emitting the actual translated line. Give it
 		// real room before giving up.
-		http: &http.Client{Timeout: 120 * time.Second},
+		http:      &http.Client{Timeout: 120 * time.Second},
+		httpBatch: &http.Client{Timeout: 15 * time.Minute},
 	}
 }
 
@@ -98,19 +107,124 @@ func (c *Client) Translate(ctx context.Context, text, sourceLang, targetLang str
 	return "", lastErr
 }
 
+// TranslateBatch sends every targeted line of a song through the local model
+// in one request, letting it use the whole song as context instead of
+// guessing at each line in isolation — see llmprompt.BuildBatch. This also
+// tends to be faster overall than the old one-request-per-line approach on
+// constrained hardware: a reasoning model's hidden chain-of-thought (see
+// maxTokens' doc comment) is paid once per request instead of once per line,
+// even though any single request now runs longer (see httpBatch).
+func (c *Client) TranslateBatch(ctx context.Context, lines []string, sourceLang, targetLang string) ([]string, error) {
+	if len(lines) == 0 {
+		return nil, nil
+	}
+	prompt := llmprompt.BuildBatch(lines, sourceLang, targetLang)
+
+	body, err := json.Marshal(map[string]any{
+		"model": c.model,
+		"messages": []map[string]string{
+			{"role": "user", "content": prompt},
+		},
+		"temperature": 0.3,
+		"max_tokens":  batchMaxTokens(len(lines)),
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	var lastErr error
+	for attempt := 1; attempt <= maxAttempts; attempt++ {
+		result, retryable, err := c.doTranslateBatch(ctx, body, len(lines))
+		if err == nil {
+			return result, nil
+		}
+		lastErr = err
+		if !retryable || attempt == maxAttempts {
+			break
+		}
+
+		backoff := time.Duration(attempt) * time.Second
+		backoff += time.Duration(rand.Intn(300)) * time.Millisecond // jitter
+		select {
+		case <-ctx.Done():
+			return nil, ctx.Err()
+		case <-time.After(backoff):
+		}
+	}
+	return nil, lastErr
+}
+
+// batchMaxTokens scales the completion budget with how many lines are in
+// the batch. maxTokens (2048) was tuned per single line to cover a
+// reasoning model's outsized hidden chain-of-thought — translating N lines
+// in one request needs roughly that budget N times over, floored so a tiny
+// batch still gets real headroom and capped so one request can't demand an
+// unreasonably large generation.
+func batchMaxTokens(n int) int {
+	tokens := maxTokens * n
+	if tokens < maxTokens {
+		return maxTokens
+	}
+	const ceiling = 32768
+	if tokens > ceiling {
+		return ceiling
+	}
+	return tokens
+}
+
 func (c *Client) doTranslate(ctx context.Context, body []byte) (result string, retryable bool, err error) {
+	content, finishReason, retryable, err := c.doRequest(ctx, c.http, body)
+	if err != nil {
+		return "", retryable, err
+	}
+
+	translated := stripThinking(content)
+	translated = strings.Trim(translated, "\"“”")
+	if translated == "" {
+		// Most likely maxTokens was exhausted by hidden reasoning before
+		// any answer was written (see maxTokens' doc comment) — retrying
+		// gives the model (temperature > 0, so not fully deterministic)
+		// another shot at a shorter chain-of-thought.
+		return "", true, fmt.Errorf("localllm: empty answer (finishReason=%s), likely truncated by max_tokens before the model finished reasoning", finishReason)
+	}
+	return translated, false, nil
+}
+
+func (c *Client) doTranslateBatch(ctx context.Context, body []byte, want int) (result []string, retryable bool, err error) {
+	content, finishReason, retryable, err := c.doRequest(ctx, c.httpBatch, body)
+	if err != nil {
+		return nil, retryable, err
+	}
+
+	out, parseErr := llmprompt.ParseBatch(stripThinking(content), want)
+	if parseErr != nil {
+		// Same reasoning as doTranslate's empty-answer case: most likely
+		// batchMaxTokens was exhausted (finishReason "length") or the model
+		// just didn't follow the "JSON array only" instruction on this
+		// sample — either way, another attempt (temperature > 0) has a real
+		// shot at a well-formed response.
+		return nil, true, fmt.Errorf("localllm: %w (finishReason=%s)", parseErr, finishReason)
+	}
+	return out, false, nil
+}
+
+// doRequest posts body to the chat completions endpoint using the given
+// http.Client (c.http for a single line, c.httpBatch for a whole-song batch
+// — see httpBatch's doc comment) and returns the first choice's raw message
+// content and finish reason.
+func (c *Client) doRequest(ctx context.Context, httpClient *http.Client, body []byte) (content, finishReason string, retryable bool, err error) {
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost, c.baseURL+"/v1/chat/completions", bytes.NewReader(body))
 	if err != nil {
-		return "", false, err
+		return "", "", false, err
 	}
 	req.Header.Set("Content-Type", "application/json")
 	if c.apiKey != "" {
 		req.Header.Set("Authorization", "Bearer "+c.apiKey)
 	}
 
-	resp, err := c.http.Do(req)
+	resp, err := httpClient.Do(req)
 	if err != nil {
-		return "", true, fmt.Errorf("localllm: request failed: %w", err)
+		return "", "", true, fmt.Errorf("localllm: request failed: %w", err)
 	}
 	defer resp.Body.Close()
 
@@ -127,31 +241,21 @@ func (c *Client) doTranslate(ctx context.Context, body []byte) (result string, r
 			} `json:"choices"`
 		}
 		if err := json.Unmarshal(respBody, &parsed); err != nil {
-			return "", false, fmt.Errorf("localllm: decode response: %w", err)
+			return "", "", false, fmt.Errorf("localllm: decode response: %w", err)
 		}
 		if len(parsed.Choices) == 0 {
-			return "", false, fmt.Errorf("localllm: no choices returned")
+			return "", "", false, fmt.Errorf("localllm: no choices returned")
 		}
-
-		translated := stripThinking(parsed.Choices[0].Message.Content)
-		translated = strings.Trim(translated, "\"“”")
-		if translated == "" {
-			// Most likely maxTokens was exhausted by hidden reasoning before
-			// any answer was written (see maxTokens' doc comment) — retrying
-			// gives the model (temperature > 0, so not fully deterministic)
-			// another shot at a shorter chain-of-thought.
-			return "", true, fmt.Errorf("localllm: empty answer (finishReason=%s), likely truncated by max_tokens before the model finished reasoning", parsed.Choices[0].FinishReason)
-		}
-		return translated, false, nil
+		return parsed.Choices[0].Message.Content, parsed.Choices[0].FinishReason, false, nil
 
 	case resp.StatusCode == http.StatusTooManyRequests:
-		return "", true, fmt.Errorf("localllm: rate limited (429)")
+		return "", "", true, fmt.Errorf("localllm: rate limited (429)")
 
 	case resp.StatusCode >= 500:
-		return "", true, fmt.Errorf("localllm: server error (%d)", resp.StatusCode)
+		return "", "", true, fmt.Errorf("localllm: server error (%d)", resp.StatusCode)
 
 	default:
-		return "", false, fmt.Errorf("localllm: request rejected (%d): %s", resp.StatusCode, string(respBody))
+		return "", "", false, fmt.Errorf("localllm: request rejected (%d): %s", resp.StatusCode, string(respBody))
 	}
 }
 

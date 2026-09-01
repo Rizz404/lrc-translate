@@ -173,12 +173,15 @@ type TranslateRequest struct {
 	Source TranslateSource `json:"source"`
 }
 
-// TranslateResponse reports the outcome of a translate batch.
+// TranslateResponse reports the outcome of a translate batch. No cache
+// accounting here (unlike AIReferenceResponse) — handleTranslateTrack now
+// calls Translator.TranslateBatch directly, one call per source-language
+// group, instead of translateOneCached per line; re-wiring the cache for a
+// whole-group call is left for later (see
+// docs/backend/fixes-2026-08-31-batch-translate-context.md).
 type TranslateResponse struct {
-	Lines       []LineDTO `json:"lines"`
-	CacheHits   int       `json:"cache_hits"`
-	CacheMisses int       `json:"cache_misses"`
-	Failed      []struct {
+	Lines  []LineDTO `json:"lines"`
+	Failed []struct {
 		LineID uint   `json:"line_id"`
 		Error  string `json:"error"`
 	} `json:"failed,omitempty"`

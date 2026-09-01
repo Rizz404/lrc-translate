@@ -15,11 +15,23 @@ import (
 	"lrc-translate/backend/internal/romanize"
 )
 
-// Translator is implemented by any MT backend (see internal/libretranslate
-// and internal/gemini) — lets Server swap providers via config without the
-// rest of the package caring which one is active.
+// Translator is implemented by any MT backend (see internal/libretranslate,
+// internal/gemini, internal/localllm) — lets Server swap providers via
+// config without the rest of the package caring which one is active.
 type Translator interface {
+	// Translate translates one line in isolation — used by
+	// handleGetAIReference (ai_reference_handler.go), which needs a
+	// same-language reference for individual lines and caches per line
+	// (translateOneCached), not a whole-track batch.
 	Translate(ctx context.Context, text, sourceLang, targetLang string) (string, error)
+	// TranslateBatch translates every line together in one call, in order —
+	// used by handleTranslateTrack so an LLM backend (gemini/localllm) can
+	// use the whole song as context instead of guessing at each line blind
+	// to its neighbors (see llmprompt.BuildBatch). LibreTranslate has no
+	// such context to use, but still implements this against its own native
+	// batch "q" array support, so callers don't need provider-specific
+	// branching.
+	TranslateBatch(ctx context.Context, lines []string, sourceLang, targetLang string) ([]string, error)
 }
 
 // Server holds the dependencies shared by all HTTP handlers.
