@@ -203,6 +203,10 @@ func (s *Server) handleUpdateLine(c *gin.Context) {
 		line.Translation = *req.Translation
 		line.Method = appdb.MethodManual
 		line.TranslationLang = "" // no longer attributable to a scrape source
+		// A human just looked at and fixed this line, which is exactly what
+		// needs_review was asking for — see handleTranslateTrack and
+		// handleAlignTrack for where it gets set true.
+		line.NeedsReview = false
 	}
 
 	if err := s.db.Save(&line).Error; err != nil {

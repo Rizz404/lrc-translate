@@ -202,9 +202,11 @@ export function EditorPage() {
           <div className="flex flex-wrap items-center gap-2">
             <AlertTriangle className="size-3.5 shrink-0" />
             <span>
-              {needsReviewCount} baris hasil scrape+align perlu dicek manual — posisinya cuma perkiraan,
-              bisa salah pasangan dengan baris aslinya walau tiap baris kelihatan masuk akal sendiri.
-              Ditandai border kuning di bawah, cek satu-satu.
+              {needsReviewCount} baris perlu dicek manual — belum tentu semuanya salah, tapi belum ada
+              yang mengonfirmasi. Bisa karena hasil scrape+align (posisinya cuma perkiraan, bisa salah
+              pasangan dengan baris aslinya) atau hasil MT/AI (terjemahan otomatis, belum tentu 100%
+              akurat maknanya). Ditandai border kuning di bawah, cek satu-satu — flag-nya hilang begitu
+              baris itu diedit manual.
             </span>
           </div>
           {/* KISS 2026-08-26: "Bandingkan dengan AI" disabled, not deleted —

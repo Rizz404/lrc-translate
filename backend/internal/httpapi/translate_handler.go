@@ -141,6 +141,12 @@ func (s *Server) handleTranslateTrack(c *gin.Context) {
 		} else {
 			line.Method = appdb.MethodMT
 		}
+		// Fresh machine output, not yet seen by a human — flag it the same
+		// way a scrape+align guess is (see handleAlignTrack), so it surfaces
+		// in EditorPage's needs_review summary/highlighting instead of
+		// silently looking "done". Cleared by handleUpdateLine once the user
+		// actually edits/confirms the line (see its NeedsReview reset).
+		line.NeedsReview = true
 		if err := s.db.Save(&line).Error; err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to save translated line: " + err.Error()})
 			return

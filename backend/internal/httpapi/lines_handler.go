@@ -36,6 +36,11 @@ func (s *Server) handleRevertLine(c *gin.Context) {
 	line.SuggestedTranslation = ""
 	line.SuggestedMethod = ""
 	line.SuggestedTranslationLang = ""
+	// Reverting restores an auto-generated (mt/ai/scrape) suggestion the
+	// user is undoing their own edit on — that's unreviewed machine output
+	// again, same as right after handleTranslateTrack/handleAlignTrack
+	// produced it, so it needs to be flagged again too.
+	line.NeedsReview = true
 
 	if err := s.db.Save(&line).Error; err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
