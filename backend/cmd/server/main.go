@@ -63,21 +63,31 @@ func main() {
 	// resolvedIsLLM marks whether that provider is an LLM (gemini/localllm,
 	// steered by internal/llmprompt) as opposed to plain NMT (libretranslate)
 	// — handleTranslateTrack uses it to tag lines db.MethodAI vs db.MethodMT.
+	//
+	// resolvedModel is the actual configured model id (e.g. the exact
+	// LOCAL_LLM_MODEL/GEMINI_MODEL string), exposed via GET /api/health so
+	// the frontend can show it instead of a bare provider id — "localllm" on
+	// its own is an internal implementation detail (this same code path
+	// works with any OpenAI-compatible server/model, not a specific brand)
+	// and reads oddly to an end user, especially once this is hosted for
+	// someone other than whoever configured it. Empty for libretranslate,
+	// which has no single "model" the way an LLM does.
 	var resolvedProvider string
 	var resolvedIsLLM bool
+	var resolvedModel string
 	switch cfg.TranslateProvider {
 	case "localllm":
 		if cfg.LocalLLMURL == "" {
 			log.Fatalf("TRANSLATE_PROVIDER=localllm but LOCAL_LLM_URL is not set")
 		}
 		translator = localllm.New(cfg.LocalLLMURL, cfg.LocalLLMAPIKey, cfg.LocalLLMModel)
-		resolvedProvider, resolvedIsLLM = "localllm", true
+		resolvedProvider, resolvedIsLLM, resolvedModel = "localllm", true, cfg.LocalLLMModel
 	case "gemini":
 		if cfg.GeminiAPIKey == "" {
 			log.Fatalf("TRANSLATE_PROVIDER=gemini but GEMINI_API_KEY is not set")
 		}
 		translator = gemini.New(cfg.GeminiAPIKey, cfg.GeminiModel)
-		resolvedProvider, resolvedIsLLM = "gemini", true
+		resolvedProvider, resolvedIsLLM, resolvedModel = "gemini", true, cfg.GeminiModel
 	case "libretranslate":
 		translator = libretranslate.New(cfg.LibreTranslateURL, cfg.LibreTranslateKey)
 		resolvedProvider, resolvedIsLLM = "libretranslate", false
@@ -89,10 +99,10 @@ func main() {
 		switch {
 		case cfg.LocalLLMURL != "":
 			translator = localllm.New(cfg.LocalLLMURL, cfg.LocalLLMAPIKey, cfg.LocalLLMModel)
-			resolvedProvider, resolvedIsLLM = "localllm", true
+			resolvedProvider, resolvedIsLLM, resolvedModel = "localllm", true, cfg.LocalLLMModel
 		case cfg.GeminiAPIKey != "":
 			translator = gemini.New(cfg.GeminiAPIKey, cfg.GeminiModel)
-			resolvedProvider, resolvedIsLLM = "gemini", true
+			resolvedProvider, resolvedIsLLM, resolvedModel = "gemini", true, cfg.GeminiModel
 		default:
 			translator = libretranslate.New(cfg.LibreTranslateURL, cfg.LibreTranslateKey)
 			resolvedProvider, resolvedIsLLM = "libretranslate", false
@@ -112,7 +122,7 @@ func main() {
 		log.Fatalf("failed to init romanizer: %v", err)
 	}
 
-	server := httpapi.NewServer(gdb, lrclibClient, translator, resolvedProvider, resolvedIsLLM, romanizer)
+	server := httpapi.NewServer(gdb, lrclibClient, translator, resolvedProvider, resolvedIsLLM, resolvedModel, romanizer)
 	router := httpapi.NewRouter(server, cfg.AllowedOrigin, cfg.StaticDir)
 
 	log.Printf("listening on :%s (db driver=%s dsn=%s)", cfg.Port, cfg.DBDriver, cfg.DBDSN)

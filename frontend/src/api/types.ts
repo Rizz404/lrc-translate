@@ -6,10 +6,15 @@
 export type Method = "none" | "mt" | "ai" | "scrape" | "manual";
 export type TrackSource = "lrclib" | "manual";
 
-/** translate_provider is the backend's active MT backend (see cmd/server/main.go's auto-resolve) — "localllm" | "gemini" | "libretranslate". Used by TranslatePanel to tailor its in-progress messaging. */
+/**
+ * translate_provider is the backend's active MT backend (see cmd/server/main.go's auto-resolve) — "localllm" | "gemini" | "libretranslate".
+ * translate_model is the actual configured model id (LOCAL_LLM_MODEL/GEMINI_MODEL), "" for libretranslate (no single "model" the way an LLM has one).
+ * Used by TranslatePanel to tailor its in-progress messaging — showing translate_model rather than the bare (internal-sounding) translate_provider.
+ */
 export interface HealthResponse {
   status: string;
   translate_provider: string;
+  translate_model: string;
 }
 
 export interface SearchResult {

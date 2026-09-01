@@ -5,7 +5,7 @@ import { Languages, Loader2, Trash2 } from "lucide-react";
 import { api } from "../api/client";
 import { useEditorStore } from "../store/editorStore";
 import { formatElapsed, useElapsedSeconds } from "../hooks/useElapsedSeconds";
-import type { Line, TranslateSource } from "../api/types";
+import type { HealthResponse, Line, TranslateSource } from "../api/types";
 
 interface Props {
   trackId: string;
@@ -13,18 +13,25 @@ interface Props {
 
 /**
  * In-progress caption shown next to the Translate button — tailored per
- * backend (see HealthResponse.translate_provider) because a self-hosted LLM
- * (internal/localllm) genuinely runs for minutes on a long track, and a
- * plain spinner with no explanation reads as "hung", not "working". Falls
- * back to a generic message before the health check resolves or for an
- * unrecognized provider.
+ * backend (see HealthResponse) because a self-hosted LLM (internal/localllm)
+ * genuinely runs for minutes on a long track, and a plain spinner with no
+ * explanation reads as "hung", not "working". Names the actual configured
+ * model (health.translate_model) rather than the bare provider id —
+ * "localllm" on its own is an internal implementation detail (this same
+ * backend path works with whatever OpenAI-compatible model is configured,
+ * not one specific brand) and would read oddly to whoever's actually using
+ * a hosted instance of this app. Falls back to a generic message before the
+ * health check resolves, for libretranslate (translate_model is "" — plain
+ * NMT has no single "model" the way an LLM does), or an unrecognized
+ * provider.
  */
-function translatingCaption(provider: string | undefined): string {
-  switch (provider) {
+function translatingCaption(health: HealthResponse | undefined): string {
+  const model = health?.translate_model ? ` (${health.translate_model})` : "";
+  switch (health?.translate_provider) {
     case "localllm":
-      return "Menerjemahkan pakai LLM lokal — makin panjang lagunya, makin lama (bisa beberapa menit untuk lagu penuh).";
+      return `Menerjemahkan pakai LLM lokal${model} — makin panjang lagunya, makin lama (bisa beberapa menit untuk lagu penuh).`;
     case "gemini":
-      return "Menerjemahkan pakai Gemini…";
+      return `Menerjemahkan pakai Gemini${model}…`;
     default:
       return "Menerjemahkan…";
   }
@@ -230,7 +237,7 @@ export function TranslatePanel({ trackId }: Props) {
           animate={{ opacity: 1 }}
           className="text-xs text-slate-500"
         >
-          {translatingCaption(healthQuery.data?.translate_provider)}
+          {translatingCaption(healthQuery.data)}
         </motion.span>
       )}
 

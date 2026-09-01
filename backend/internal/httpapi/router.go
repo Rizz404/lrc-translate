@@ -49,19 +49,26 @@ type Server struct {
 	// handleTranslateTrack tag a line db.MethodAI vs db.MethodMT. See
 	// resolvedIsLLM in cmd/server/main.go for how this is decided.
 	translatorIsLLM bool
+	// translatorModel is the actual configured model id (e.g.
+	// LOCAL_LLM_MODEL/GEMINI_MODEL), empty for libretranslate — exposed via
+	// GET /api/health so the frontend can show the real model instead of
+	// the bare (and rather internal-sounding) translatorID. See
+	// resolvedModel in cmd/server/main.go.
+	translatorModel string
 	romanizer       *romanize.Romanizer
 }
 
 // NewServer builds a Server with its dependencies. translatorID/
-// translatorIsLLM describe the Translator passed in — see their doc
-// comments on Server.
-func NewServer(db *gorm.DB, lrclibClient *lrclib.Client, translator Translator, translatorID string, translatorIsLLM bool, romanizer *romanize.Romanizer) *Server {
+// translatorIsLLM/translatorModel describe the Translator passed in — see
+// their doc comments on Server.
+func NewServer(db *gorm.DB, lrclibClient *lrclib.Client, translator Translator, translatorID string, translatorIsLLM bool, translatorModel string, romanizer *romanize.Romanizer) *Server {
 	return &Server{
 		db:              db,
 		lrclib:          lrclibClient,
 		translator:      translator,
 		translatorID:    translatorID,
 		translatorIsLLM: translatorIsLLM,
+		translatorModel: translatorModel,
 		romanizer:       romanizer,
 	}
 }
