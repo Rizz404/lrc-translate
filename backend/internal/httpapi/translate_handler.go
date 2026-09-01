@@ -136,7 +136,11 @@ func (s *Server) handleTranslateTrack(c *gin.Context) {
 
 		line.Translation = o.translated
 		line.TranslationLang = ""
-		line.Method = appdb.MethodMT
+		if s.translatorIsLLM {
+			line.Method = appdb.MethodAI
+		} else {
+			line.Method = appdb.MethodMT
+		}
 		if err := s.db.Save(&line).Error; err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to save translated line: " + err.Error()})
 			return

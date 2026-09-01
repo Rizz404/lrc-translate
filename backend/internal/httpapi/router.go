@@ -36,17 +36,34 @@ type Translator interface {
 
 // Server holds the dependencies shared by all HTTP handlers.
 type Server struct {
-	db           *gorm.DB
-	lrclib       *lrclib.Client
-	translator   Translator
-	translatorID string // e.g. "libretranslate" or "gemini" — namespaces the translation cache (see translationCacheKey) so switching providers doesn't serve stale results from a different engine
-	romanizer    *romanize.Romanizer
+	db         *gorm.DB
+	lrclib     *lrclib.Client
+	translator Translator
+	// translatorID is e.g. "libretranslate"/"gemini"/"localllm" — namespaces
+	// the translation cache (see translationCacheKey) so switching providers
+	// doesn't serve stale results from a different engine, and is exposed
+	// via GET /api/health so the frontend knows what's active.
+	translatorID string
+	// translatorIsLLM is true for gemini/localllm (steered by
+	// internal/llmprompt), false for libretranslate (plain NMT) — lets
+	// handleTranslateTrack tag a line db.MethodAI vs db.MethodMT. See
+	// resolvedIsLLM in cmd/server/main.go for how this is decided.
+	translatorIsLLM bool
+	romanizer       *romanize.Romanizer
 }
 
-// NewServer builds a Server with its dependencies. translatorID identifies
-// which Translator was passed in (see Server.translatorID).
-func NewServer(db *gorm.DB, lrclibClient *lrclib.Client, translator Translator, translatorID string, romanizer *romanize.Romanizer) *Server {
-	return &Server{db: db, lrclib: lrclibClient, translator: translator, translatorID: translatorID, romanizer: romanizer}
+// NewServer builds a Server with its dependencies. translatorID/
+// translatorIsLLM describe the Translator passed in — see their doc
+// comments on Server.
+func NewServer(db *gorm.DB, lrclibClient *lrclib.Client, translator Translator, translatorID string, translatorIsLLM bool, romanizer *romanize.Romanizer) *Server {
+	return &Server{
+		db:              db,
+		lrclib:          lrclibClient,
+		translator:      translator,
+		translatorID:    translatorID,
+		translatorIsLLM: translatorIsLLM,
+		romanizer:       romanizer,
+	}
 }
 
 // NewRouter builds the Gin engine with CORS (restricted to allowedOrigin) and

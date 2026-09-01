@@ -13,9 +13,18 @@ import "time"
 type Method string
 
 const (
-	MethodNone   Method = "none"
-	MethodMT     Method = "mt"
-	MethodAI     Method = "ai" // reserved for Cabang B (not implemented yet)
+	MethodNone Method = "none"
+	// MethodMT is set by handleTranslateTrack when the active Translator is
+	// plain NMT (libretranslate) — literal, not steered by a prompt.
+	MethodMT Method = "mt"
+	// MethodAI is set by handleTranslateTrack when the active Translator is
+	// an LLM (gemini/localllm) — steered by internal/llmprompt to translate
+	// like a song lyric rather than word-for-word. Originally reserved for a
+	// separate, never-built "Cabang B" endpoint (see plan-extended.md); the
+	// LLM-vs-NMT distinction ended up folded into the one /translate
+	// endpoint instead (see resolvedIsLLM in cmd/server/main.go), so this is
+	// now what actually marks that distinction on a line.
+	MethodAI     Method = "ai"
 	MethodScrape Method = "scrape"
 	MethodManual Method = "manual"
 )

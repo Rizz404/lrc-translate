@@ -59,23 +59,28 @@ func main() {
 	// servers auto-resolving to different providers (e.g. one with
 	// GEMINI_API_KEY set, one without) would both use the "" cache
 	// namespace and could serve each other's stale results.
+	//
+	// resolvedIsLLM marks whether that provider is an LLM (gemini/localllm,
+	// steered by internal/llmprompt) as opposed to plain NMT (libretranslate)
+	// — handleTranslateTrack uses it to tag lines db.MethodAI vs db.MethodMT.
 	var resolvedProvider string
+	var resolvedIsLLM bool
 	switch cfg.TranslateProvider {
 	case "localllm":
 		if cfg.LocalLLMURL == "" {
 			log.Fatalf("TRANSLATE_PROVIDER=localllm but LOCAL_LLM_URL is not set")
 		}
 		translator = localllm.New(cfg.LocalLLMURL, cfg.LocalLLMAPIKey, cfg.LocalLLMModel)
-		resolvedProvider = "localllm"
+		resolvedProvider, resolvedIsLLM = "localllm", true
 	case "gemini":
 		if cfg.GeminiAPIKey == "" {
 			log.Fatalf("TRANSLATE_PROVIDER=gemini but GEMINI_API_KEY is not set")
 		}
 		translator = gemini.New(cfg.GeminiAPIKey, cfg.GeminiModel)
-		resolvedProvider = "gemini"
+		resolvedProvider, resolvedIsLLM = "gemini", true
 	case "libretranslate":
 		translator = libretranslate.New(cfg.LibreTranslateURL, cfg.LibreTranslateKey)
-		resolvedProvider = "libretranslate"
+		resolvedProvider, resolvedIsLLM = "libretranslate", false
 	case "":
 		// Auto-resolve: prefer localllm when a server URL is configured
 		// (doesn't fail startup like the explicit "localllm" case above
@@ -84,13 +89,13 @@ func main() {
 		switch {
 		case cfg.LocalLLMURL != "":
 			translator = localllm.New(cfg.LocalLLMURL, cfg.LocalLLMAPIKey, cfg.LocalLLMModel)
-			resolvedProvider = "localllm"
+			resolvedProvider, resolvedIsLLM = "localllm", true
 		case cfg.GeminiAPIKey != "":
 			translator = gemini.New(cfg.GeminiAPIKey, cfg.GeminiModel)
-			resolvedProvider = "gemini"
+			resolvedProvider, resolvedIsLLM = "gemini", true
 		default:
 			translator = libretranslate.New(cfg.LibreTranslateURL, cfg.LibreTranslateKey)
-			resolvedProvider = "libretranslate"
+			resolvedProvider, resolvedIsLLM = "libretranslate", false
 		}
 	default:
 		log.Fatalf("unknown TRANSLATE_PROVIDER %q (expected \"libretranslate\", \"gemini\", or \"localllm\")", cfg.TranslateProvider)
@@ -107,7 +112,7 @@ func main() {
 		log.Fatalf("failed to init romanizer: %v", err)
 	}
 
-	server := httpapi.NewServer(gdb, lrclibClient, translator, resolvedProvider, romanizer)
+	server := httpapi.NewServer(gdb, lrclibClient, translator, resolvedProvider, resolvedIsLLM, romanizer)
 	router := httpapi.NewRouter(server, cfg.AllowedOrigin, cfg.StaticDir)
 
 	log.Printf("listening on :%s (db driver=%s dsn=%s)", cfg.Port, cfg.DBDriver, cfg.DBDSN)
