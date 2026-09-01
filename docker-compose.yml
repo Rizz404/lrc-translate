@@ -8,11 +8,12 @@
 #   - libretranslate: self-hosted MT engine so translate doesn't depend on
 #     libretranslate.com's paid API key (see README.md). First start
 #     downloads language models — can take a while and several GB of disk.
-#     KISS priority (2026-08-26): the app service auto-prefers Gemini over
-#     this service whenever GEMINI_API_KEY is set (TRANSLATE_PROVIDER left
-#     unset below) — this service is only actually used as the MT backend
-#     when no Gemini key is configured, or TRANSLATE_PROVIDER is forced to
-#     "libretranslate" explicitly. See the app service's environment below.
+#     KISS priority (2026-08-31): the app service auto-prefers a local LLM
+#     (LOCAL_LLM_URL) over Gemini (GEMINI_API_KEY) over this service
+#     (TRANSLATE_PROVIDER left unset below) — this service is only actually
+#     used as the MT backend when neither of the above is configured, or
+#     TRANSLATE_PROVIDER is forced to "libretranslate" explicitly. See the
+#     app service's environment below.
 #
 # Usage:
 #   cp .env.example .env   # adjust APP_PORT / secrets if needed
@@ -42,15 +43,24 @@ services:
       # — not a public URL, so no API key is needed.
       LIBRETRANSLATE_URL: http://libretranslate:5000
       LIBRETRANSLATE_API_KEY: ${LIBRETRANSLATE_API_KEY:-}
-      # KISS priority (2026-08-26): left unset (default), the backend
-      # auto-prefers "gemini" (Google AI Studio — LLM-based, much more
-      # natural/lyric-like output) whenever GEMINI_API_KEY below is filled
-      # in, falling back to "libretranslate" (free, self-hosted, but fairly
-      # literal output) otherwise. Set TRANSLATE_PROVIDER explicitly in your
-      # Portainer stack's environment variables to force one regardless of
-      # key presence. GEMINI_API_KEY is a secret and shouldn't be committed
-      # to git.
+      # KISS priority (2026-08-31): left unset (default), the backend
+      # auto-prefers "localllm" (your own self-hosted OpenAI-compatible
+      # server, e.g. LM Studio — free/unlimited) whenever LOCAL_LLM_URL
+      # below is filled in, then "gemini" (Google AI Studio — LLM-based,
+      # same natural/lyric-like output but free-tier rate limited/quota'd)
+      # whenever GEMINI_API_KEY is filled in, falling back to
+      # "libretranslate" (free, self-hosted, but fairly literal output)
+      # otherwise. Set TRANSLATE_PROVIDER explicitly in your Portainer
+      # stack's environment variables to force one regardless of what's
+      # configured. GEMINI_API_KEY / LOCAL_LLM_API_KEY are secrets and
+      # shouldn't be committed to git.
       TRANSLATE_PROVIDER: ${TRANSLATE_PROVIDER:-}
+      # Usually a tunnel URL (e.g. ngrok) to a server on hardware you own —
+      # only reachable while that machine + tunnel are up. See
+      # backend/internal/localllm.
+      LOCAL_LLM_URL: ${LOCAL_LLM_URL:-}
+      LOCAL_LLM_API_KEY: ${LOCAL_LLM_API_KEY:-}
+      LOCAL_LLM_MODEL: ${LOCAL_LLM_MODEL:-Qwen3.6 35B A3B Uncensored HauhauCS Aggressive Q5 K P (modified)}
       GEMINI_API_KEY: ${GEMINI_API_KEY:-}
       GEMINI_MODEL: ${GEMINI_MODEL:-gemini-2.5-flash}
       # Frontend is served same-origin by this same container, so CORS

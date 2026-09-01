@@ -11,6 +11,7 @@ import (
 	"lrc-translate/backend/internal/gemini"
 	"lrc-translate/backend/internal/httpapi"
 	"lrc-translate/backend/internal/libretranslate"
+	"lrc-translate/backend/internal/localllm"
 	"lrc-translate/backend/internal/lrclib"
 	"lrc-translate/backend/internal/romanize"
 )
@@ -37,15 +38,18 @@ func main() {
 
 	lrclibClient := lrclib.New(cfg.LRCLIBBaseURL)
 
-	// KISS priority (2026-08-26): Gemini (LLM, natural/idiomatic output) is
-	// preferred over LibreTranslate (literal MT) whenever a key is actually
+	// KISS priority (2026-08-31): localllm (self-hosted LLM, free/unlimited)
+	// is preferred over gemini (cloud LLM, free-tier rate limit/daily quota)
+	// whenever a server URL is actually configured, and gemini is in turn
+	// preferred over libretranslate (literal MT) whenever a key is actually
 	// available; scrape+align is a separate, manual, last-resort feature
 	// entirely outside this switch (see scrape_handler.go). This is a
-	// startup-time default only, not a runtime fallback — if Gemini starts
-	// failing mid-session (e.g. daily quota exhausted, see
-	// docs/backend/fixes-2026-08-25-scrape-alignment.md point 8), recovery
-	// is TRANSLATE_PROVIDER=libretranslate + restart, not an automatic retry
-	// with the other provider.
+	// startup-time default only, not a runtime fallback — if the active
+	// provider starts failing mid-session (e.g. Gemini's daily quota
+	// exhausted, see docs/backend/fixes-2026-08-25-scrape-alignment.md point
+	// 8, or the local LLM's tunnel going down), recovery is
+	// TRANSLATE_PROVIDER=<other provider> + restart, not an automatic retry
+	// with a different provider.
 	var translator httpapi.Translator
 	// resolvedProvider is the *actual* provider picked, as opposed to
 	// cfg.TranslateProvider which can be "" (auto). Passed to NewServer
@@ -57,6 +61,12 @@ func main() {
 	// namespace and could serve each other's stale results.
 	var resolvedProvider string
 	switch cfg.TranslateProvider {
+	case "localllm":
+		if cfg.LocalLLMURL == "" {
+			log.Fatalf("TRANSLATE_PROVIDER=localllm but LOCAL_LLM_URL is not set")
+		}
+		translator = localllm.New(cfg.LocalLLMURL, cfg.LocalLLMAPIKey, cfg.LocalLLMModel)
+		resolvedProvider = "localllm"
 	case "gemini":
 		if cfg.GeminiAPIKey == "" {
 			log.Fatalf("TRANSLATE_PROVIDER=gemini but GEMINI_API_KEY is not set")
@@ -67,19 +77,23 @@ func main() {
 		translator = libretranslate.New(cfg.LibreTranslateURL, cfg.LibreTranslateKey)
 		resolvedProvider = "libretranslate"
 	case "":
-		// Auto-resolve: prefer gemini when a key is present (doesn't fail
-		// startup like the explicit "gemini" case above would without one),
-		// otherwise fall back to libretranslate — same as before this
-		// priority change when no key is configured.
-		if cfg.GeminiAPIKey != "" {
+		// Auto-resolve: prefer localllm when a server URL is configured
+		// (doesn't fail startup like the explicit "localllm" case above
+		// would without one), else gemini when a key is present, else fall
+		// back to libretranslate.
+		switch {
+		case cfg.LocalLLMURL != "":
+			translator = localllm.New(cfg.LocalLLMURL, cfg.LocalLLMAPIKey, cfg.LocalLLMModel)
+			resolvedProvider = "localllm"
+		case cfg.GeminiAPIKey != "":
 			translator = gemini.New(cfg.GeminiAPIKey, cfg.GeminiModel)
 			resolvedProvider = "gemini"
-		} else {
+		default:
 			translator = libretranslate.New(cfg.LibreTranslateURL, cfg.LibreTranslateKey)
 			resolvedProvider = "libretranslate"
 		}
 	default:
-		log.Fatalf("unknown TRANSLATE_PROVIDER %q (expected \"libretranslate\" or \"gemini\")", cfg.TranslateProvider)
+		log.Fatalf("unknown TRANSLATE_PROVIDER %q (expected \"libretranslate\", \"gemini\", or \"localllm\")", cfg.TranslateProvider)
 	}
 	if cfg.TranslateProvider == "" {
 		log.Printf("translate provider: %s (auto-resolved, TRANSLATE_PROVIDER unset)", resolvedProvider)
