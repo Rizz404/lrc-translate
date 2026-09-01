@@ -64,19 +64,28 @@ func Build(text, sourceLang, targetLang string) string {
 			"\"saya\"/\"Anda\"; in French use \"tu\", never \"vous\") — unless "+
 			"the source line is itself unmistakably formal or reverent in "+
 			"tone. Never mix formal and informal address across lines.\n"+
-			"2. Translate the FULL line. Every word must end up in %s. Never "+
+			"2. Diction: informal address (Rule 1) is not the same as sloppy "+
+			"wording. Use standard, properly-spelled %s — the way it's "+
+			"written in a published lyric booklet or a printed poem — never "+
+			"texting/chat shorthand or spoken-conversation filler (e.g. in "+
+			"Indonesian prefer \"tidak\"/\"sudah\"/\"seperti\" over "+
+			"\"nggak\"/\"gak\"/\"udah\"/\"kayak\", and drop filler particles "+
+			"like \"deh\"/\"sih\"/\"dong\"/\"kok\" unless the source line is "+
+			"itself genuinely that kind of spoken interjection). The result "+
+			"should feel like a real lyric translation, not a chat message.\n"+
+			"3. Translate the FULL line. Every word must end up in %s. Never "+
 			"leave part or all of the line untranslated, and never output the "+
 			"source text unchanged — the only exception is a proper noun "+
 			"(a name, a place) with no natural equivalent.\n"+
-			"3. Prioritize meaning over literal wording: render what the line "+
+			"4. Prioritize meaning over literal wording: render what the line "+
 			"actually means and how a native %s speaker would naturally say it "+
 			"in a song, not a stiff word-for-word mapping of the source "+
 			"grammar.\n"+
-			"4. Keep it roughly as concise as the original line, so it still "+
+			"5. Keep it roughly as concise as the original line, so it still "+
 			"reads like a lyric.\n\n"+
 			"Output ONLY the translated line itself, with no quotation marks, "+
 			"romanization, explanation, or extra commentary.\n\nLine: %q",
-		from, to, to, to, to, text,
+		from, to, to, to, to, to, text,
 	)
 }
 
@@ -117,26 +126,35 @@ func BuildBatch(lines []string, sourceLang, targetLang string) string {
 			"\"saya\"/\"Anda\"; in French use \"tu\", never \"vous\") — unless "+
 			"the song is itself unmistakably formal or reverent in tone. Never "+
 			"mix formal and informal address across lines.\n"+
-			"2. Translate every line FULLY. Every word must end up in %s. Never "+
+			"2. Diction: informal address (Rule 1) is not the same as sloppy "+
+			"wording. Use standard, properly-spelled %s — the way it's "+
+			"written in a published lyric booklet or a printed poem — never "+
+			"texting/chat shorthand or spoken-conversation filler (e.g. in "+
+			"Indonesian prefer \"tidak\"/\"sudah\"/\"seperti\" over "+
+			"\"nggak\"/\"gak\"/\"udah\"/\"kayak\", and drop filler particles "+
+			"like \"deh\"/\"sih\"/\"dong\"/\"kok\" unless the source line is "+
+			"itself genuinely that kind of spoken interjection). The result "+
+			"should feel like a real lyric translation, not a chat message.\n"+
+			"3. Translate every line FULLY. Every word must end up in %s. Never "+
 			"leave part or all of a line untranslated, and never output the "+
 			"source text unchanged — the only exception is a proper noun (a "+
 			"name, a place) with no natural equivalent.\n"+
-			"3. Prioritize meaning over literal wording: render what each line "+
+			"4. Prioritize meaning over literal wording: render what each line "+
 			"actually means and how a native %s speaker would naturally say it "+
 			"in a song, not a stiff word-for-word mapping of the source "+
 			"grammar.\n"+
-			"4. Keep each line roughly as concise as its original, so it still "+
+			"5. Keep each line roughly as concise as its original, so it still "+
 			"reads like a lyric.\n"+
-			"5. Use the surrounding lines as context: keep the same pronouns, "+
+			"6. Use the surrounding lines as context: keep the same pronouns, "+
 			"tone, and wording for repeated lines/hooks consistent across the "+
 			"whole song.\n"+
-			"6. Return exactly %d lines, in the same order as given — never "+
+			"7. Return exactly %d lines, in the same order as given — never "+
 			"merge, split, skip, or add lines.\n\n"+
 			"Output ONLY a JSON array of exactly %d strings (one translated "+
 			"line per array element, same order as below) — no numbering, no "+
 			"markdown code fence, no explanation, nothing before or after the "+
 			"array.\n\nLines:\n%s",
-		from, to, len(lines), to, to, to, len(lines), len(lines), numbered.String(),
+		from, to, len(lines), to, to, to, to, len(lines), len(lines), numbered.String(),
 	)
 }
 

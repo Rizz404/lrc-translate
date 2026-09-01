@@ -30,6 +30,12 @@ User minta dirombak: kirim semua baris sekaligus supaya AI-nya paham konteks pen
 
 Sesuai permintaan eksplisit user. `translateOneCached`/`translationCacheKey` **tidak dihapus** — masih dipakai `handleGetAIReference` (fitur terpisah, per-baris, route-nya sendiri masih nonaktif — lihat router.go) — cuma `handleTranslateTrack` berhenti memanggilnya. `TranslateResponse` (dto.go) kehilangan field `cache_hits`/`cache_misses`; frontend (`types.ts`, `TranslatePanel.tsx`) disesuaikan (nampilin jumlah baris diterjemahkan alih-alih itu). `AIReferenceResponse` gak disentuh, masih punya `cache_hits`/`cache_misses` sendiri.
 
+## 6. Prompt nambah Rule "Diction" — biar kerasa lirik, bukan chat
+
+Setelah dicoba pada lagu asli, hasil terjemahan Indonesia-nya kebaca terlalu "everyday conversation" (mis. gaya kontraksi/partikel chat kayak "udah", "gak", "kayak", "deh", "kok") padahal user maunya bahasa Indonesia yang baku secara ejaan/diksi — tapi tetap informal secara alamat (`aku`/`kamu`, bukan `saya`/`Anda`, yang memang sudah jadi Rule 1 sebelumnya). Dua sumbu ini (register alamat vs. diksi/ejaan) ternyata gampang ketuker kalau cuma dijelasin lewat satu rule.
+
+[prompt.go](../../backend/internal/llmprompt/prompt.go): `Build`/`BuildBatch` nambah **Rule 2 baru — "Diction"** — di antara Rule 1 (Register) dan rule "translate FULL line" lama (nomornya jadi geser semua): pakai ejaan/diksi standar di bahasa target (bukan singkatan chat/SMS atau filler obrolan lisan), sambil tetap pertahankan alamat informal dari Rule 1. Kasih contoh konkret bahasa Indonesia (`tidak`/`sudah`/`seperti` alih-alih `nggak`/`gak`/`udah`/`kayak`, buang filler `deh`/`sih`/`dong`/`kok` kecuali baris sumbernya memang interjeksi lisan beneran) — sama pola dengan Rule 1 yang juga kasih contoh ID+FR biar model non-ID (mis. saat translate ke bahasa lain) tetap dapat instruksi yang jelas lewat analogi.
+
 ## Yang sengaja tidak diubah
 
 - LM Studio config tuning (context_length, presence_penalty, thinking mode dsb) — itu rekomendasi terpisah ke user, bukan perubahan kode.
