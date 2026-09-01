@@ -36,6 +36,22 @@ Setelah dicoba pada lagu asli, hasil terjemahan Indonesia-nya kebaca terlalu "ev
 
 [prompt.go](../../backend/internal/llmprompt/prompt.go): `Build`/`BuildBatch` nambah **Rule 2 baru — "Diction"** — di antara Rule 1 (Register) dan rule "translate FULL line" lama (nomornya jadi geser semua): pakai ejaan/diksi standar di bahasa target (bukan singkatan chat/SMS atau filler obrolan lisan), sambil tetap pertahankan alamat informal dari Rule 1. Kasih contoh konkret bahasa Indonesia (`tidak`/`sudah`/`seperti` alih-alih `nggak`/`gak`/`udah`/`kayak`, buang filler `deh`/`sih`/`dong`/`kok` kecuali baris sumbernya memang interjeksi lisan beneran) — sama pola dengan Rule 1 yang juga kasih contoh ID+FR biar model non-ID (mis. saat translate ke bahasa lain) tetap dapat instruksi yang jelas lewat analogi.
 
+## 7. Frontend: counter waktu + pesan loading yang provider-aware
+
+Karena batch translate sekarang bisa betulan makan waktu menit-an di LLM lokal (bukan lagi kedip cepat kayak libretranslate per-baris), spinner polos di tombol Translate gampang kebaca "hang" padahal masih jalan. Ditambah:
+
+- **`GET /api/health`** ([health_handler.go](../../backend/internal/httpapi/health_handler.go)) sekarang ikut balikin `translate_provider` (isinya `s.translatorID`, sama yang dipakai buat namespace cache) — sekadar expose provider yang lagi aktif, bukan endpoint baru.
+- **`useElapsedSeconds`** hook baru ([useElapsedSeconds.ts](../../frontend/src/hooks/useElapsedSeconds.ts)): hitung detik berjalan sejak sebuah mutation mulai pending, reset begitu selesai. Dihitung dari wall-clock (`Date.now()` diff), bukan sekadar hitung tick, biar gak ngaco kalau tab di-background dan `setInterval` di-throttle browser.
+- **`TranslatePanel.tsx`**: tombol Translate pas pending sekarang nampilin `Menerjemahkan… mm:ss`, plus caption di bawahnya yang beda teks tergantung `translate_provider` — kasih peringatan eksplisit "bisa beberapa menit" khusus buat `localllm` (yang paling sering bikin orang kira macet), pesan lebih pendek buat `gemini`, generic buat sisanya.
+
+## 8. `Method`/`needs_review` dibenerin, `translate_model` diekspos gantiin `translate_provider` mentah
+
+User nemu tiga hal nyata pas ngetes ulang: (a) hasil translate lewat LLM (localllm/gemini) tetap ke-tag `method: "mt"`, padahal frontend udah lama punya badge ungu "AI" yang gak kepakai; (b) `needs_review` selalu `false` abis translate, padahal user mau itu `true` biar ke-flag buat direview; (c) nampilin string `"localllm"` mentah ke frontend bakal aneh kalau di-hosting buat orang lain (bukan brand/model, cuma nama internal package).
+
+- **Method AI vs MT** ([db/models.go](../../backend/internal/db/models.go), [main.go](../../backend/cmd/server/main.go), [translate_handler.go](../../backend/internal/httpapi/translate_handler.go)): `MethodAI` ternyata udah lama ada di enum + [MethodBadge.tsx](../../frontend/src/components/MethodBadge.tsx) (badge fuchsia "AI") — sisa dari rencana lama "Cabang B (AI)" yang gak jadi dibikin sebagai endpoint terpisah. Sekarang `main.go` hitung `resolvedIsLLM` (true buat gemini/localllm, false buat libretranslate) dan lempar ke `Server`; `handleTranslateTrack` pakai itu buat milih `MethodAI` vs `MethodMT`.
+- **`needs_review` di-set `true` abis translate** ([translate_handler.go](../../backend/internal/httpapi/translate_handler.go)) — sama kayak hasil scrape+align, karena sama-sama "output mesin yang belum dilihat manusia". Supaya flag-nya beneran bisa clear (bukan cuma nyala terus), `handleUpdateLine` ([tracks_handler.go](../../backend/internal/httpapi/tracks_handler.go)) sekarang set `false` begitu user edit manual, dan `handleRevertLine` ([lines_handler.go](../../backend/internal/httpapi/lines_handler.go)) set balik ke `true` (revert = balik ke saran otomatis yang belum direview lagi). Banner ringkasan di [EditorPage.tsx](../../frontend/src/pages/EditorPage.tsx) diupdate teksnya biar gak lagi ngasumsikan penyebabnya selalu scrape+align.
+- **`translate_model` di health** ([health_handler.go](../../backend/internal/httpapi/health_handler.go)): `main.go` sekarang juga nyimpen `resolvedModel` (nilai `LOCAL_LLM_MODEL`/`GEMINI_MODEL` yang beneran dipakai, kosong buat libretranslate) dan expose lewat `GET /api/health`. [TranslatePanel.tsx](../../frontend/src/components/TranslatePanel.tsx) pakai ini buat nampilin nama model asli di caption loading, bukan hardcode "LLM lokal" doang atau nama brand yang di-guess — jadi tetep akurat kalau modelnya diganti nanti tanpa perlu ubah kode lagi.
+
 ## Yang sengaja tidak diubah
 
 - LM Studio config tuning (context_length, presence_penalty, thinking mode dsb) — itu rekomendasi terpisah ke user, bukan perubahan kode.
@@ -47,6 +63,7 @@ Setelah dicoba pada lagu asli, hasil terjemahan Indonesia-nya kebaca terlalu "ev
 **Baru**:
 - `backend/internal/llmprompt/prompt_test.go`
 - `backend/internal/gemini/client_test.go`
+- `frontend/src/hooks/useElapsedSeconds.ts`
 - `docs/backend/fixes-2026-08-31-batch-translate-context.md` (dokumen ini)
 
 **Modifikasi**:
@@ -60,7 +77,12 @@ Setelah dicoba pada lagu asli, hasil terjemahan Indonesia-nya kebaca terlalu "ev
 - `backend/internal/localllm/client_test.go` (test `TranslateBatch`)
 - `backend/internal/libretranslate/client.go` (`TranslateBatch`, `doRequest` refactor)
 - `backend/internal/libretranslate/client_test.go` (test `TranslateBatch`)
-- `frontend/src/api/types.ts` (`TranslateResponse` kehilangan cache_hits/cache_misses)
-- `frontend/src/components/TranslatePanel.tsx` (tampilan hasil translate disesuaikan)
+- `backend/internal/httpapi/health_handler.go` (`translate_provider` + `translate_model` di response)
+- `backend/internal/db/models.go` (`MethodAI` doc comment diupdate — bukan lagi "reserved, not implemented")
+- `backend/internal/httpapi/lines_handler.go` (`handleRevertLine` set `NeedsReview = true`)
+- `frontend/src/api/types.ts` (`TranslateResponse` kehilangan cache_hits/cache_misses; `HealthResponse` baru + `translate_model`)
+- `frontend/src/api/client.ts` (`api.health()`)
+- `frontend/src/components/TranslatePanel.tsx` (tampilan hasil translate disesuaikan; counter waktu + caption provider+model-aware saat pending)
+- `frontend/src/pages/EditorPage.tsx` (teks banner needs_review gak lagi ngasumsikan selalu dari scrape+align)
 
 Diverifikasi dengan `go build ./...`, `go vet ./...`, `go test ./...` (semua sukses) dan `npx tsc -b` di frontend (gak ada type error). Belum diverifikasi manual ke server LM Studio user yang sesungguhnya — perlu dicoba langsung untuk konfirmasi soal waktu total & konsistensi hasil.
