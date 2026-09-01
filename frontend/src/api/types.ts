@@ -6,6 +6,12 @@
 export type Method = "none" | "mt" | "ai" | "scrape" | "manual";
 export type TrackSource = "lrclib" | "manual";
 
+/** translate_provider is the backend's active MT backend (see cmd/server/main.go's auto-resolve) — "localllm" | "gemini" | "libretranslate". Used by TranslatePanel to tailor its in-progress messaging. */
+export interface HealthResponse {
+  status: string;
+  translate_provider: string;
+}
+
 export interface SearchResult {
   lrclib_id: number;
   title: string;

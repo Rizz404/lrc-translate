@@ -1,13 +1,33 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { useMutation } from "@tanstack/react-query";
+import { useMutation, useQuery } from "@tanstack/react-query";
 import { motion } from "motion/react";
 import { Languages, Loader2, Trash2 } from "lucide-react";
 import { api } from "../api/client";
 import { useEditorStore } from "../store/editorStore";
+import { formatElapsed, useElapsedSeconds } from "../hooks/useElapsedSeconds";
 import type { Line, TranslateSource } from "../api/types";
 
 interface Props {
   trackId: string;
+}
+
+/**
+ * In-progress caption shown next to the Translate button — tailored per
+ * backend (see HealthResponse.translate_provider) because a self-hosted LLM
+ * (internal/localllm) genuinely runs for minutes on a long track, and a
+ * plain spinner with no explanation reads as "hung", not "working". Falls
+ * back to a generic message before the health check resolves or for an
+ * unrecognized provider.
+ */
+function translatingCaption(provider: string | undefined): string {
+  switch (provider) {
+    case "localllm":
+      return "Menerjemahkan pakai LLM lokal — makin panjang lagunya, makin lama (bisa beberapa menit untuk lagu penuh).";
+    case "gemini":
+      return "Menerjemahkan pakai Gemini…";
+    default:
+      return "Menerjemahkan…";
+  }
 }
 
 const LANGS = [
@@ -89,12 +109,24 @@ export function TranslatePanel({ trackId }: Props) {
         ? "sama dengan bahasa hasil scrape"
         : null;
 
+  // Cached indefinitely and never retried: the active provider is a
+  // startup-time config choice (see cmd/server/main.go), not something that
+  // changes mid-session, and this is only used for in-progress copy — not
+  // worth a retry loop or a stale warning if it fails once.
+  const healthQuery = useQuery({
+    queryKey: ["health"],
+    queryFn: api.health,
+    staleTime: Infinity,
+    retry: false,
+  });
+
   const translateMutation = useMutation({
     mutationFn: () => api.translateTrack(trackId, { target_lang: targetLang, source }),
     onSuccess: (resp) => {
       for (const line of resp.lines) patchLine(line.id, line);
     },
   });
+  const translateElapsed = useElapsedSeconds(translateMutation.isPending);
 
   const clearMutation = useMutation({
     mutationFn: () => api.clearTranslation(trackId),
@@ -179,12 +211,27 @@ export function TranslatePanel({ trackId }: Props) {
           className="inline-flex items-center gap-2 rounded-lg bg-violet-600 px-3.5 py-2 text-sm font-medium text-white shadow-md shadow-violet-600/20 transition-colors hover:bg-violet-500 disabled:cursor-not-allowed disabled:bg-slate-700 disabled:shadow-none"
         >
           {translateMutation.isPending ? (
-            <Loader2 className="size-4 animate-spin" />
+            <>
+              <Loader2 className="size-4 animate-spin" />
+              Menerjemahkan… {formatElapsed(translateElapsed)}
+            </>
           ) : (
-            <Languages className="size-4" />
+            <>
+              <Languages className="size-4" />
+              Translate
+            </>
           )}
-          Translate
         </motion.button>
+      )}
+
+      {translateMutation.isPending && (
+        <motion.span
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          className="text-xs text-slate-500"
+        >
+          {translatingCaption(healthQuery.data?.translate_provider)}
+        </motion.span>
       )}
 
       {translateMutation.isSuccess && (
@@ -195,10 +242,14 @@ export function TranslatePanel({ trackId }: Props) {
         >
           {translateMutation.data.lines.length} baris diterjemahkan
           {translateMutation.data.failed?.length ? `, ${translateMutation.data.failed.length} gagal` : ""}
+          {" · selesai dalam "}
+          {formatElapsed(translateElapsed)}
         </motion.span>
       )}
       {translateMutation.isError && (
-        <span className="text-xs text-rose-400">{(translateMutation.error as Error).message}</span>
+        <span className="text-xs text-rose-400">
+          {(translateMutation.error as Error).message} (setelah {formatElapsed(translateElapsed)})
+        </span>
       )}
       {clearMutation.isSuccess && (
         <motion.span

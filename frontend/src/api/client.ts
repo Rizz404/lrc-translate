@@ -3,6 +3,7 @@ import type {
   AIReferenceResponse,
   AlignTrackResponse,
   ClearTranslationResponse,
+  HealthResponse,
   Line,
   ResetTrackResponse,
   RomanizeResponse,
@@ -37,6 +38,11 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
 }
 
 export const api = {
+  /** Also reports translate_provider — see HealthResponse. */
+  health(): Promise<HealthResponse> {
+    return request("/health");
+  },
+
   search(title: string): Promise<SearchResult[]> {
     const params = new URLSearchParams({ title });
     return request(`/search?${params.toString()}`);
