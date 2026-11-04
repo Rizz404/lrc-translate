@@ -3,11 +3,11 @@ import { useTranslation } from "react-i18next";
 import type { Method } from "../api/types";
 
 const STYLES: Record<Method, string> = {
-  none: "bg-slate-800 text-slate-500",
-  mt: "bg-sky-500/15 text-sky-300 ring-1 ring-sky-500/30",
-  ai: "bg-fuchsia-500/15 text-fuchsia-300 ring-1 ring-fuchsia-500/30",
-  scrape: "bg-amber-500/15 text-amber-300 ring-1 ring-amber-500/30",
-  manual: "bg-emerald-500/15 text-emerald-300 ring-1 ring-emerald-500/30",
+  none: "bg-neutral-800 text-neutral-500",
+  mt: "bg-info-500/15 text-info-300 ring-1 ring-info-500/30",
+  ai: "bg-tertiary-500/15 text-tertiary-300 ring-1 ring-tertiary-500/30",
+  scrape: "bg-warning-500/15 text-warning-300 ring-1 ring-warning-500/30",
+  manual: "bg-success-500/15 text-success-300 ring-1 ring-success-500/30",
 };
 
 interface Props {

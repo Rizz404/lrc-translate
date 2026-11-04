@@ -91,15 +91,15 @@ export function CopyDownloadBar({ track }: Props) {
       <motion.button
         whileTap={{ scale: 0.95 }}
         onClick={handleCopy}
-        className="inline-flex items-center gap-2 rounded-lg border border-slate-800 bg-slate-900/60 px-3.5 py-2 text-sm font-medium text-slate-300 transition-colors hover:border-slate-700 hover:text-white"
+        className="inline-flex items-center gap-2 rounded-lg border border-neutral-800 bg-neutral-900/60 px-3.5 py-2 text-sm font-medium text-neutral-300 transition-colors hover:border-neutral-700 hover:text-white"
       >
-        {copied ? <Check className="size-4 text-emerald-400" /> : <Copy className="size-4" />}
+        {copied ? <Check className="size-4 text-success-400" /> : <Copy className="size-4" />}
         {copied ? t("copyBar.copied") : t("copyBar.copy")}
       </motion.button>
       <motion.button
         whileTap={{ scale: 0.95 }}
         onClick={handleDownload}
-        className="inline-flex items-center gap-2 rounded-lg border border-slate-800 bg-slate-900/60 px-3.5 py-2 text-sm font-medium text-slate-300 transition-colors hover:border-slate-700 hover:text-white"
+        className="inline-flex items-center gap-2 rounded-lg border border-neutral-800 bg-neutral-900/60 px-3.5 py-2 text-sm font-medium text-neutral-300 transition-colors hover:border-neutral-700 hover:text-white"
       >
         <Download className="size-4" />
         {t("copyBar.download")}
@@ -111,8 +111,8 @@ export function CopyDownloadBar({ track }: Props) {
         aria-label={t("copyBar.options")}
         className={`inline-flex items-center justify-center rounded-lg border px-2.5 py-2 text-sm font-medium transition-colors ${
           optionsOpen
-            ? "border-violet-500/50 bg-violet-500/10 text-violet-300"
-            : "border-slate-800 bg-slate-900/60 text-slate-300 hover:border-slate-700 hover:text-white"
+            ? "border-primary-500/50 bg-primary-500/10 text-primary-300"
+            : "border-neutral-800 bg-neutral-900/60 text-neutral-300 hover:border-neutral-700 hover:text-white"
         }`}
       >
         <SlidersHorizontal className="size-4" />
@@ -125,34 +125,34 @@ export function CopyDownloadBar({ track }: Props) {
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: -4, scale: 0.98 }}
             transition={{ duration: 0.15 }}
-            className="absolute top-full left-0 z-20 mt-2 w-64 rounded-xl border border-slate-800 bg-slate-950/95 p-3.5 shadow-xl shadow-black/40 backdrop-blur"
+            className="absolute top-full left-0 z-20 mt-2 w-64 rounded-xl border border-neutral-800 bg-neutral-950/95 p-3.5 shadow-xl shadow-black/40 backdrop-blur"
           >
-            <p className="text-xs text-slate-500">
+            <p className="text-xs text-neutral-500">
               <Trans
                 i18nKey="copyBar.mainLyricHint"
                 values={{ mode: showRomanized ? t("romanize.romaji") : t("romanize.original") }}
-                components={{ mode: <span className="text-slate-300" /> }}
+                components={{ mode: <span className="text-neutral-300" /> }}
               />
             </p>
 
-            <div className="mt-3 border-t border-slate-800/70 pt-3">
-              <label className="flex items-center gap-2 text-sm text-slate-300">
+            <div className="mt-3 border-t border-neutral-800/70 pt-3">
+              <label className="flex items-center gap-2 text-sm text-neutral-300">
                 <input
                   type="checkbox"
                   checked={options.includeTranslation}
                   onChange={(e) =>
                     setOptions((o) => ({ ...o, includeTranslation: e.target.checked }))
                   }
-                  className="accent-violet-500"
+                  className="accent-primary-500"
                 />
                 {t("copyBar.includeTranslation")}
               </label>
-              <p className="mt-1 pl-6 text-[11px] text-slate-500">
+              <p className="mt-1 pl-6 text-[11px] text-neutral-500">
                 {t("copyBar.includeTranslationHint")}
               </p>
               <label
                 className={`mt-1.5 flex items-center gap-2 pl-6 text-sm ${
-                  options.includeTranslation ? "text-slate-300" : "cursor-not-allowed text-slate-600"
+                  options.includeTranslation ? "text-neutral-300" : "cursor-not-allowed text-neutral-600"
                 }`}
               >
                 <input
@@ -162,7 +162,7 @@ export function CopyDownloadBar({ track }: Props) {
                   onChange={(e) =>
                     setOptions((o) => ({ ...o, wrapTranslationInParens: e.target.checked }))
                   }
-                  className="accent-violet-500"
+                  className="accent-primary-500"
                 />
                 {t("copyBar.wrapInParens")}
               </label>
@@ -177,7 +177,7 @@ export function CopyDownloadBar({ track }: Props) {
             initial={{ opacity: 0, y: -4 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0 }}
-            className="absolute top-full left-0 z-20 mt-2 w-max max-w-xs text-xs text-rose-400"
+            className="absolute top-full left-0 z-20 mt-2 w-max max-w-xs text-xs text-danger-400"
           >
             {copyError}
           </motion.p>

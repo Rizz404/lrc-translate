@@ -9,7 +9,7 @@ export function LanguageSwitcher() {
     <div
       role="group"
       aria-label={t("common.language")}
-      className="absolute top-3 right-3 z-30 inline-flex rounded-lg border border-slate-800 bg-slate-900/60 p-0.5 text-xs backdrop-blur"
+      className="absolute top-3 right-3 z-30 inline-flex rounded-lg border border-neutral-800 bg-neutral-900/60 p-0.5 text-xs backdrop-blur"
     >
       {SUPPORTED_LANGUAGES.map((l) => (
         <button
@@ -18,7 +18,7 @@ export function LanguageSwitcher() {
           aria-pressed={current === l.code}
           title={l.label}
           className={`rounded-md px-2 py-1 font-medium uppercase transition-colors ${
-            current === l.code ? "bg-violet-600 text-white" : "text-slate-400 hover:text-white"
+            current === l.code ? "bg-primary-600 text-white" : "text-neutral-400 hover:text-white"
           }`}
         >
           {l.code}

@@ -101,14 +101,14 @@ export function EditorPage() {
 
   if (isLoading) {
     return (
-      <div className="flex min-h-svh items-center justify-center text-slate-500">
+      <div className="flex min-h-svh items-center justify-center text-neutral-500">
         <Loader2 className="size-6 animate-spin" />
       </div>
     );
   }
   if (error) {
     return (
-      <div className="flex min-h-svh items-center justify-center text-rose-400">
+      <div className="flex min-h-svh items-center justify-center text-danger-400">
         {(error as Error).message}
       </div>
     );
@@ -121,7 +121,7 @@ export function EditorPage() {
     <div className="mx-auto min-h-svh max-w-3xl px-4 pt-8 pb-20">
       <button
         onClick={() => navigate("/")}
-        className="mb-4 inline-flex items-center gap-1.5 text-sm text-slate-500 transition-colors hover:text-slate-300"
+        className="mb-4 inline-flex items-center gap-1.5 text-sm text-neutral-500 transition-colors hover:text-neutral-300"
       >
         <ArrowLeft className="size-4" />
         {t("editor.back")}
@@ -130,18 +130,18 @@ export function EditorPage() {
       <motion.h1
         initial={{ opacity: 0, y: -6 }}
         animate={{ opacity: 1, y: 0 }}
-        className="text-2xl font-bold text-slate-100 sm:text-3xl"
+        className="text-2xl font-bold text-neutral-100 sm:text-3xl"
       >
         {track.title}
-        <span className="text-slate-500"> — {track.artist}</span>
+        <span className="text-neutral-500"> — {track.artist}</span>
       </motion.h1>
 
-      <div className="sticky top-0 z-10 -mx-4 mt-5 flex flex-wrap items-center gap-3 border-b border-slate-800/70 bg-slate-950/85 px-4 py-3 backdrop-blur-md">
+      <div className="sticky top-0 z-10 -mx-4 mt-5 flex flex-wrap items-center gap-3 border-b border-neutral-800/70 bg-neutral-950/85 px-4 py-3 backdrop-blur-md">
         <CopyDownloadBar track={track} />
         {/* Hidden below sm: in a wrapped flex row this 1px divider ends up
             stranded alone at the row break, rendering as a stray floating
             bar — the gap gives enough visual separation on narrow screens. */}
-        <div className="hidden h-6 w-px bg-slate-800 sm:block" />
+        <div className="hidden h-6 w-px bg-neutral-800 sm:block" />
         {track.language === "ja" && <RomanizeButton trackId={track.id} />}
         <TranslatePanel trackId={track.id} />
       </div>
@@ -154,7 +154,7 @@ export function EditorPage() {
         <button
           onClick={() => setScrapeResetKey((k) => k + 1)}
           title={t("editor.resetScrapeTitle")}
-          className="inline-flex items-center gap-1.5 rounded-lg px-2 py-1 text-xs text-slate-500 transition-colors hover:bg-slate-900/60 hover:text-slate-300"
+          className="inline-flex items-center gap-1.5 rounded-lg px-2 py-1 text-xs text-neutral-500 transition-colors hover:bg-neutral-900/60 hover:text-neutral-300"
         >
           <Eraser className="size-3.5" />
           {t("editor.resetScrape")}
@@ -163,7 +163,7 @@ export function EditorPage() {
           onClick={handleResetAllLines}
           disabled={resetTrackMutation.isPending}
           title={t("editor.resetAllTitle")}
-          className="inline-flex items-center gap-1.5 rounded-lg px-2 py-1 text-xs text-rose-400/80 transition-colors hover:bg-rose-950/30 hover:text-rose-300 disabled:cursor-not-allowed disabled:opacity-50"
+          className="inline-flex items-center gap-1.5 rounded-lg px-2 py-1 text-xs text-danger-400/80 transition-colors hover:bg-danger-950/30 hover:text-danger-300 disabled:cursor-not-allowed disabled:opacity-50"
         >
           {resetTrackMutation.isPending ? (
             <Loader2 className="size-3.5 animate-spin" />
@@ -173,7 +173,7 @@ export function EditorPage() {
           {t("editor.resetAll")}
         </button>
         {resetTrackMutation.isError && (
-          <span className="text-xs text-rose-400">{(resetTrackMutation.error as Error).message}</span>
+          <span className="text-xs text-danger-400">{(resetTrackMutation.error as Error).message}</span>
         )}
       </div>
 
@@ -196,7 +196,7 @@ export function EditorPage() {
           last resort rather than the primary path this banner needs to
           actively help recover from. */}
       {needsReviewCount > 0 && (
-        <div className="mt-3 flex flex-col gap-2 rounded-lg border border-amber-500/30 bg-amber-500/[0.06] px-3 py-2 text-xs text-amber-300">
+        <div className="mt-3 flex flex-col gap-2 rounded-lg border border-warning-500/30 bg-warning-500/[0.06] px-3 py-2 text-xs text-warning-300">
           <div className="flex flex-wrap items-center gap-2">
             <AlertTriangle className="size-3.5 shrink-0" />
             <span>{t("editor.needsReview", { count: needsReviewCount })}</span>
@@ -209,7 +209,7 @@ export function EditorPage() {
               onClick={() => aiReferenceMutation.mutate(undefined)}
               disabled={aiReferenceMutation.isPending}
               title="Minta terjemahan mesin per-baris sebagai pembanding — berguna kalau kamu gak bisa baca lirik aslinya, karena hasil ini selalu di posisi yang benar (bukan tebakan alignment). Diproses satu-satu biar gak kena rate limit provider AI-nya."
-              className="inline-flex items-center gap-1.5 rounded-lg border border-sky-500/30 bg-sky-500/[0.08] px-2.5 py-1.5 font-medium text-sky-300 transition-colors hover:bg-sky-500/[0.16] hover:text-sky-200 disabled:cursor-not-allowed disabled:opacity-50"
+              className="inline-flex items-center gap-1.5 rounded-lg border border-info-500/30 bg-info-500/[0.08] px-2.5 py-1.5 font-medium text-info-300 transition-colors hover:bg-info-500/[0.16] hover:text-info-200 disabled:cursor-not-allowed disabled:opacity-50"
             >
               {aiReferenceMutation.isPending ? (
                 <Loader2 className="size-3.5 animate-spin" />
@@ -219,17 +219,17 @@ export function EditorPage() {
               {aiReferenceMutation.isPending ? "Memproses…" : "Bandingkan dengan AI"}
             </button>
             {aiReferenceMutation.isSuccess && (
-              <span className="text-slate-500">
+              <span className="text-neutral-500">
                 Referensi AI siap untuk {aiReferenceMutation.data.lines.length} baris — cek chip biru
                 "AI" di bawah tiap terjemahan.
               </span>
             )}
             {aiReferenceMutation.isError && (
-              <span className="text-rose-400">{(aiReferenceMutation.error as Error).message}</span>
+              <span className="text-danger-400">{(aiReferenceMutation.error as Error).message}</span>
             )}
           </div>
           {(aiReferenceMutation.data?.failed?.length ?? 0) > 0 && (
-            <div className="flex flex-wrap items-center gap-2 pl-[22px] text-amber-400">
+            <div className="flex flex-wrap items-center gap-2 pl-[22px] text-warning-400">
               <span>
                 {aiReferenceMutation.data!.failed!.length} baris gagal diminta — provider AI-nya lagi
                 membatasi permintaan (rate limit/kuota). Kalau langsung dicoba lagi masih gagal juga,
@@ -238,7 +238,7 @@ export function EditorPage() {
               <button
                 onClick={() => aiReferenceMutation.mutate(aiReferenceMutation.data!.failed!.map((f) => f.line_id))}
                 disabled={aiReferenceMutation.isPending}
-                className="underline decoration-dotted underline-offset-2 hover:text-amber-300 disabled:cursor-not-allowed disabled:opacity-50"
+                className="underline decoration-dotted underline-offset-2 hover:text-warning-300 disabled:cursor-not-allowed disabled:opacity-50"
               >
                 coba lagi baris yang gagal
               </button>

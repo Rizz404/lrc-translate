@@ -82,13 +82,13 @@ export function SearchPage() {
         transition={{ duration: 0.5, ease: "easeOut" }}
         className="mb-10 flex flex-col items-center text-center"
       >
-        <div className="mb-4 flex size-14 items-center justify-center rounded-2xl bg-gradient-to-br from-violet-500 to-fuchsia-500 shadow-lg shadow-violet-500/30">
+        <div className="mb-4 flex size-14 items-center justify-center rounded-2xl bg-gradient-to-br from-primary-500 to-secondary-400 shadow-lg shadow-primary-500/30">
           <Music2 className="size-7 text-white" strokeWidth={2.2} />
         </div>
-        <h1 className="bg-gradient-to-br from-white to-slate-400 bg-clip-text text-4xl font-extrabold tracking-tight text-transparent sm:text-5xl">
+        <h1 className="bg-gradient-to-br from-white to-neutral-400 bg-clip-text text-4xl font-extrabold tracking-tight text-transparent sm:text-5xl">
           lrc-translate
         </h1>
-        <p className="mt-3 max-w-md text-balance text-slate-400">
+        <p className="mt-3 max-w-md text-balance text-neutral-400">
           {t("search.tagline")}
         </p>
       </motion.div>
@@ -107,16 +107,16 @@ export function SearchPage() {
         }}
         className="group relative w-full"
       >
-        <Search className="pointer-events-none absolute top-1/2 left-4 size-5 -translate-y-1/2 text-slate-500 transition-colors group-focus-within:text-violet-400" />
+        <Search className="pointer-events-none absolute top-1/2 left-4 size-5 -translate-y-1/2 text-neutral-500 transition-colors group-focus-within:text-primary-400" />
         <input
           autoFocus
           placeholder={t("search.placeholder")}
           value={title}
           onChange={(e) => setTitle(e.target.value)}
-          className="w-full rounded-2xl border border-slate-800 bg-slate-900/70 py-4 pr-12 pl-12 text-base text-slate-100 shadow-lg shadow-black/20 outline-none backdrop-blur transition-all placeholder:text-slate-500 focus:border-violet-500/60 focus:ring-4 focus:ring-violet-500/15"
+          className="w-full rounded-2xl border border-neutral-800 bg-neutral-900/70 py-4 pr-12 pl-12 text-base text-neutral-100 shadow-lg shadow-black/20 outline-none backdrop-blur transition-all placeholder:text-neutral-500 focus:border-primary-500/60 focus:ring-4 focus:ring-primary-500/15"
         />
         {searchMutation.isPending && (
-          <Loader2 className="pointer-events-none absolute top-1/2 right-4 size-5 -translate-y-1/2 animate-spin text-violet-400" />
+          <Loader2 className="pointer-events-none absolute top-1/2 right-4 size-5 -translate-y-1/2 animate-spin text-primary-400" />
         )}
       </motion.form>
 
@@ -124,7 +124,7 @@ export function SearchPage() {
         <motion.p
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
-          className="mt-4 text-sm text-rose-400"
+          className="mt-4 text-sm text-danger-400"
         >
           {(searchMutation.error as Error).message}
         </motion.p>
@@ -133,7 +133,7 @@ export function SearchPage() {
         <motion.p
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
-          className="mt-4 text-sm text-rose-400"
+          className="mt-4 text-sm text-danger-400"
         >
           {(importMutation.error as Error).message}
         </motion.p>

@@ -44,7 +44,7 @@ export function ScrapeReference({ context, current, onPick, aiText }: Props) {
     <div className="flex flex-wrap items-center gap-1">
       <span
         title="Baris ini diambil dari hasil scrape mentah, dari posisi terdekat yang berhasil dicocokkan otomatis — klik salah satu untuk menerapkannya"
-        className="shrink-0 cursor-help text-[10px] tracking-wide text-slate-600 uppercase underline decoration-dotted decoration-slate-700 underline-offset-2"
+        className="shrink-0 cursor-help text-[10px] tracking-wide text-neutral-600 uppercase underline decoration-dotted decoration-neutral-700 underline-offset-2"
       >
         mentah
       </span>
@@ -58,10 +58,10 @@ export function ScrapeReference({ context, current, onPick, aiText }: Props) {
             title={`Klik untuk pakai: "${item.text}"`}
             className={`max-w-[55vw] truncate rounded-md border px-1.5 py-0.5 text-left text-[11px] transition-colors sm:max-w-[240px] ${
               isCurrent
-                ? "border-emerald-500/40 bg-emerald-500/[0.08] text-emerald-300"
+                ? "border-success-500/40 bg-success-500/[0.08] text-success-300"
                 : item.isMatch
-                  ? "border-amber-500/30 bg-amber-500/[0.05] text-amber-200/90 hover:bg-amber-500/[0.12] hover:text-amber-100"
-                  : "border-slate-800 bg-slate-900/30 text-slate-500 hover:border-slate-700 hover:text-slate-300"
+                  ? "border-warning-500/30 bg-warning-500/[0.05] text-warning-200/90 hover:bg-warning-500/[0.12] hover:text-warning-100"
+                  : "border-neutral-800 bg-neutral-900/30 text-neutral-500 hover:border-neutral-700 hover:text-neutral-300"
             }`}
           >
             {item.text}
@@ -75,8 +75,8 @@ export function ScrapeReference({ context, current, onPick, aiText }: Props) {
           title={`Referensi terjemahan mesin (selalu di posisi yang benar) — klik untuk pakai: "${aiText}"`}
           className={`max-w-[55vw] truncate rounded-md border px-1.5 py-0.5 text-left text-[11px] transition-colors sm:max-w-[240px] ${
             aiText === current
-              ? "border-emerald-500/40 bg-emerald-500/[0.08] text-emerald-300"
-              : "border-sky-500/30 bg-sky-500/[0.06] text-sky-300/90 hover:bg-sky-500/[0.14] hover:text-sky-200"
+              ? "border-success-500/40 bg-success-500/[0.08] text-success-300"
+              : "border-info-500/30 bg-info-500/[0.06] text-info-300/90 hover:bg-info-500/[0.14] hover:text-info-200"
           }`}
         >
           <span className="mr-1 font-semibold">AI</span>

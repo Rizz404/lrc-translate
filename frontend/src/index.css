@@ -1,8 +1,129 @@
 @import "tailwindcss";
 
+/*
+ * Palette sampled from the reference artwork (pink-haired character: rose
+ * hair, peach skin/highlights, violet hair shadows, red-orange eyes, teal
+ * jacket, brass compass, plum-navy shadows). Each scale is generated in
+ * OKLCH (same 50-950 lightness ladder as Tailwind's defaults, chroma clamped
+ * to sRGB), and every 600 stop keeps >= 4.4:1 contrast against white text.
+ *
+ * Identity:  primary (actions/focus/selection), secondary (warm accent,
+ *            gradients), tertiary (AI badge, cool accent).
+ * Status:    success, warning (needs-review), danger (destructive/error),
+ *            info (MT badge).
+ * Neutral:   surfaces, borders and text.
+ * Use these role names in markup (`bg-primary-600`, `text-danger-400`) so a
+ * re-skin means editing only this block. This deliberately replaces
+ * Tailwind's default `neutral` scale; the other default colors still exist
+ * but are unused — add new roles here instead of reaching for `bg-pink-500`.
+ */
 @theme {
   --font-sans: "Inter", system-ui, "Segoe UI", Roboto, sans-serif;
   --font-mono: "JetBrains Mono", ui-monospace, Consolas, monospace;
+
+  /* neutral: plum-tinted darks from the shadows/outlines (hue 320) */
+  --color-neutral-50: oklch(0.984 0.011 320);
+  --color-neutral-100: oklch(0.962 0.018 320);
+  --color-neutral-200: oklch(0.920 0.021 320);
+  --color-neutral-300: oklch(0.860 0.025 320);
+  --color-neutral-400: oklch(0.700 0.028 320);
+  --color-neutral-500: oklch(0.550 0.030 320);
+  --color-neutral-600: oklch(0.445 0.030 320);
+  --color-neutral-700: oklch(0.370 0.028 320);
+  --color-neutral-800: oklch(0.280 0.026 320);
+  --color-neutral-900: oklch(0.215 0.024 320);
+  --color-neutral-950: oklch(0.150 0.022 320);
+
+  /* primary: the pink hair (hue 355) */
+  --color-primary-50: oklch(0.975 0.012 355);
+  --color-primary-100: oklch(0.945 0.030 355);
+  --color-primary-200: oklch(0.895 0.062 355);
+  --color-primary-300: oklch(0.815 0.117 355);
+  --color-primary-400: oklch(0.725 0.158 355);
+  --color-primary-500: oklch(0.640 0.180 355);
+  --color-primary-600: oklch(0.560 0.175 355);
+  --color-primary-700: oklch(0.490 0.153 355);
+  --color-primary-800: oklch(0.425 0.130 355);
+  --color-primary-900: oklch(0.370 0.108 355);
+  --color-primary-950: oklch(0.270 0.081 355);
+
+  /* secondary: peach skin/hair highlights (hue 48) */
+  --color-secondary-50: oklch(0.975 0.012 48);
+  --color-secondary-100: oklch(0.945 0.026 48);
+  --color-secondary-200: oklch(0.895 0.050 48);
+  --color-secondary-300: oklch(0.815 0.078 48);
+  --color-secondary-400: oklch(0.725 0.106 48);
+  --color-secondary-500: oklch(0.640 0.120 48);
+  --color-secondary-600: oklch(0.560 0.116 48);
+  --color-secondary-700: oklch(0.490 0.102 48);
+  --color-secondary-800: oklch(0.425 0.086 48);
+  --color-secondary-900: oklch(0.370 0.072 48);
+  --color-secondary-950: oklch(0.270 0.054 48);
+
+  /* tertiary: violet hair shadows (hue 305) */
+  --color-tertiary-50: oklch(0.975 0.014 305);
+  --color-tertiary-100: oklch(0.945 0.031 305);
+  --color-tertiary-200: oklch(0.895 0.059 305);
+  --color-tertiary-300: oklch(0.815 0.091 305);
+  --color-tertiary-400: oklch(0.725 0.123 305);
+  --color-tertiary-500: oklch(0.640 0.140 305);
+  --color-tertiary-600: oklch(0.560 0.136 305);
+  --color-tertiary-700: oklch(0.490 0.119 305);
+  --color-tertiary-800: oklch(0.425 0.101 305);
+  --color-tertiary-900: oklch(0.370 0.084 305);
+  --color-tertiary-950: oklch(0.270 0.063 305);
+
+  /* success: teal jacket/cap (hue 178) */
+  --color-success-50: oklch(0.975 0.011 178);
+  --color-success-100: oklch(0.945 0.023 178);
+  --color-success-200: oklch(0.895 0.044 178);
+  --color-success-300: oklch(0.815 0.068 178);
+  --color-success-400: oklch(0.725 0.092 178);
+  --color-success-500: oklch(0.640 0.105 178);
+  --color-success-600: oklch(0.560 0.102 178);
+  --color-success-700: oklch(0.490 0.089 178);
+  --color-success-800: oklch(0.425 0.076 178);
+  --color-success-900: oklch(0.370 0.063 178);
+  --color-success-950: oklch(0.270 0.047 178);
+
+  /* warning: brass compass (hue 80) */
+  --color-warning-50: oklch(0.975 0.013 80);
+  --color-warning-100: oklch(0.945 0.029 80);
+  --color-warning-200: oklch(0.895 0.055 80);
+  --color-warning-300: oklch(0.815 0.085 80);
+  --color-secondary-400: oklch(0.725 0.114 80);
+  --color-warning-500: oklch(0.640 0.130 80);
+  --color-warning-600: oklch(0.560 0.114 80);
+  --color-warning-700: oklch(0.490 0.100 80);
+  --color-warning-800: oklch(0.425 0.088 80);
+  --color-warning-900: oklch(0.370 0.076 80);
+  --color-warning-950: oklch(0.270 0.054 80);
+
+  /* danger: red-orange eyes (hue 25) */
+  --color-danger-50: oklch(0.975 0.011 25);
+  --color-danger-100: oklch(0.945 0.027 25);
+  --color-danger-200: oklch(0.895 0.054 25);
+  --color-danger-300: oklch(0.815 0.102 25);
+  --color-danger-400: oklch(0.725 0.163 25);
+  --color-danger-500: oklch(0.640 0.185 25);
+  --color-danger-600: oklch(0.560 0.179 25);
+  --color-danger-700: oklch(0.490 0.157 25);
+  --color-danger-800: oklch(0.425 0.133 25);
+  --color-danger-900: oklch(0.370 0.111 25);
+  --color-danger-950: oklch(0.270 0.083 25);
+
+  /* info: navy-blue background (hue 240) */
+  --color-info-50: oklch(0.975 0.011 240);
+  --color-info-100: oklch(0.945 0.024 240);
+  --color-info-200: oklch(0.895 0.046 240);
+  --color-info-300: oklch(0.815 0.072 240);
+  --color-info-400: oklch(0.725 0.097 240);
+  --color-info-500: oklch(0.640 0.110 240);
+  --color-info-600: oklch(0.560 0.107 240);
+  --color-info-700: oklch(0.490 0.093 240);
+  --color-info-800: oklch(0.425 0.079 240);
+  --color-info-900: oklch(0.370 0.066 240);
+  --color-info-950: oklch(0.270 0.050 240);
 }
 
 html {
@@ -11,19 +132,28 @@ html {
 
 body {
   margin: 0;
-  @apply bg-slate-950 text-slate-200 antialiased;
+  @apply bg-neutral-950 text-neutral-200 antialiased;
+  /* Soft rose glow top-left fading to peach top-right — the hair's gradient. */
   background-image:
-    radial-gradient(ellipse 80% 50% at 20% -10%, rgba(129, 90, 248, 0.25), transparent),
-    radial-gradient(ellipse 60% 40% at 100% 0%, rgba(236, 72, 153, 0.12), transparent);
+    radial-gradient(
+      ellipse 80% 50% at 20% -10%,
+      color-mix(in oklab, var(--color-primary-500) 24%, transparent),
+      transparent
+    ),
+    radial-gradient(
+      ellipse 60% 40% at 100% 0%,
+      color-mix(in oklab, var(--color-secondary-400) 12%, transparent),
+      transparent
+    );
   background-attachment: fixed;
 }
 
 ::selection {
-  @apply bg-violet-500/40 text-white;
+  @apply bg-primary-500/40 text-white;
 }
 
 * {
-  scrollbar-color: theme(colors.slate.700) transparent;
+  scrollbar-color: var(--color-neutral-700) transparent;
   scrollbar-width: thin;
 }
 

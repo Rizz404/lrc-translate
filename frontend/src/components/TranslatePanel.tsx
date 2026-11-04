@@ -148,7 +148,7 @@ export function TranslatePanel({ trackId }: Props) {
   return (
     <div className="flex flex-wrap items-center gap-2">
       {hasScrapeData && (
-        <div className="flex items-center gap-1 rounded-lg border border-slate-800 bg-slate-900/60 p-1 text-xs">
+        <div className="flex items-center gap-1 rounded-lg border border-neutral-800 bg-neutral-900/60 p-1 text-xs">
           {/* Scrape listed first, matching the default selection above
               (hasScrapeData ? "scrape" : "original") — when scrape data
               exists it's the safer/preferred source, so it shouldn't sit
@@ -157,7 +157,7 @@ export function TranslatePanel({ trackId }: Props) {
             onClick={() => handleSourceChange("scrape")}
             title={t("translate.sourceScrapeTitle")}
             className={`rounded-md px-2 py-1 font-medium transition-colors ${
-              source === "scrape" ? "bg-violet-600 text-white" : "text-slate-400 hover:text-slate-200"
+              source === "scrape" ? "bg-primary-600 text-white" : "text-neutral-400 hover:text-neutral-200"
             }`}
           >
             {t("translate.sourceScrape")}
@@ -166,7 +166,7 @@ export function TranslatePanel({ trackId }: Props) {
             onClick={() => handleSourceChange("original")}
             title={t("translate.sourceOriginalTitle")}
             className={`rounded-md px-2 py-1 font-medium transition-colors ${
-              source === "original" ? "bg-violet-600 text-white" : "text-slate-400 hover:text-slate-200"
+              source === "original" ? "bg-primary-600 text-white" : "text-neutral-400 hover:text-neutral-200"
             }`}
           >
             {t("translate.sourceOriginal")}
@@ -177,7 +177,7 @@ export function TranslatePanel({ trackId }: Props) {
       <select
         value={targetLang}
         onChange={(e) => setTargetLang(e.target.value)}
-        className="rounded-lg border border-slate-800 bg-slate-900/60 px-3 py-2 text-sm text-slate-300 outline-none transition-colors hover:border-slate-700 focus:border-violet-500/50"
+        className="rounded-lg border border-neutral-800 bg-neutral-900/60 px-3 py-2 text-sm text-neutral-300 outline-none transition-colors hover:border-neutral-700 focus:border-primary-500/50"
       >
         {LANGS.map((l) => {
           const disabled =
@@ -201,7 +201,7 @@ export function TranslatePanel({ trackId }: Props) {
           onClick={() => clearMutation.mutate()}
           disabled={clearMutation.isPending}
           title={t("translate.clearTitle", { reason: t(blockedReason) })}
-          className="inline-flex items-center gap-2 rounded-lg bg-rose-600/90 px-3.5 py-2 text-sm font-medium text-white shadow-md shadow-rose-600/20 transition-colors hover:bg-rose-500 disabled:cursor-not-allowed disabled:bg-slate-700 disabled:shadow-none"
+          className="inline-flex items-center gap-2 rounded-lg bg-danger-600/90 px-3.5 py-2 text-sm font-medium text-white shadow-md shadow-danger-600/20 transition-colors hover:bg-danger-500 disabled:cursor-not-allowed disabled:bg-neutral-700 disabled:shadow-none"
         >
           {clearMutation.isPending ? (
             <Loader2 className="size-4 animate-spin" />
@@ -218,7 +218,7 @@ export function TranslatePanel({ trackId }: Props) {
           whileTap={{ scale: 0.95 }}
           onClick={() => translateMutation.mutate()}
           disabled={translateMutation.isPending}
-          className="inline-flex items-center gap-2 rounded-lg bg-violet-600 px-3.5 py-2 text-sm font-medium text-white shadow-md shadow-violet-600/20 transition-colors hover:bg-violet-500 disabled:cursor-not-allowed disabled:bg-slate-700 disabled:shadow-none"
+          className="inline-flex items-center gap-2 rounded-lg bg-primary-600 px-3.5 py-2 text-sm font-medium text-white shadow-md shadow-primary-600/20 transition-colors hover:bg-primary-500 disabled:cursor-not-allowed disabled:bg-neutral-700 disabled:shadow-none"
         >
           {translateMutation.isPending ? (
             <>
@@ -238,7 +238,7 @@ export function TranslatePanel({ trackId }: Props) {
         <motion.span
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
-          className="text-xs text-slate-500"
+          className="text-xs text-neutral-500"
         >
           {translatingCaption(healthQuery.data, t)}
         </motion.span>
@@ -248,7 +248,7 @@ export function TranslatePanel({ trackId }: Props) {
         <motion.span
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
-          className="text-xs text-slate-500"
+          className="text-xs text-neutral-500"
         >
           {translateMutation.data.failed?.length
             ? t("translate.resultWithFailed", {
@@ -263,7 +263,7 @@ export function TranslatePanel({ trackId }: Props) {
         </motion.span>
       )}
       {translateMutation.isError && (
-        <span className="text-xs text-rose-400">
+        <span className="text-xs text-danger-400">
           {t("translate.errorAfter", {
             message: (translateMutation.error as Error).message,
             elapsed: formatElapsed(translateElapsed),
@@ -274,13 +274,13 @@ export function TranslatePanel({ trackId }: Props) {
         <motion.span
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
-          className="text-xs text-slate-500"
+          className="text-xs text-neutral-500"
         >
           {t("translate.cleared", { count: clearMutation.data.lines.length })}
         </motion.span>
       )}
       {clearMutation.isError && (
-        <span className="text-xs text-rose-400">{(clearMutation.error as Error).message}</span>
+        <span className="text-xs text-danger-400">{(clearMutation.error as Error).message}</span>
       )}
     </div>
   );

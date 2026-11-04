@@ -45,7 +45,7 @@ export function RomanizeButton({ trackId }: Props) {
         onClick={() => mutation.mutate()}
         disabled={mutation.isPending}
         title={protectedCount > 0 ? t("romanize.protectedTitle", { count: protectedCount }) : undefined}
-        className="inline-flex items-center gap-2 rounded-lg border border-slate-800 bg-slate-900/60 px-3.5 py-2 text-sm font-medium text-slate-300 transition-colors hover:border-slate-700 hover:text-white disabled:cursor-not-allowed disabled:opacity-50"
+        className="inline-flex items-center gap-2 rounded-lg border border-neutral-800 bg-neutral-900/60 px-3.5 py-2 text-sm font-medium text-neutral-300 transition-colors hover:border-neutral-700 hover:text-white disabled:cursor-not-allowed disabled:opacity-50"
       >
         {mutation.isPending ? (
           <Loader2 className="size-4 animate-spin" />
@@ -56,11 +56,11 @@ export function RomanizeButton({ trackId }: Props) {
       </motion.button>
 
       {hasAnyRomanized && (
-        <div className="inline-flex rounded-lg border border-slate-800 bg-slate-900/60 p-0.5 text-xs">
+        <div className="inline-flex rounded-lg border border-neutral-800 bg-neutral-900/60 p-0.5 text-xs">
           <button
             onClick={() => setShowRomanized(false)}
             className={`rounded-md px-2.5 py-1 font-medium transition-colors ${
-              !showRomanized ? "bg-violet-600 text-white" : "text-slate-400 hover:text-white"
+              !showRomanized ? "bg-primary-600 text-white" : "text-neutral-400 hover:text-white"
             }`}
           >
             {t("romanize.original")}
@@ -68,7 +68,7 @@ export function RomanizeButton({ trackId }: Props) {
           <button
             onClick={() => setShowRomanized(true)}
             className={`rounded-md px-2.5 py-1 font-medium transition-colors ${
-              showRomanized ? "bg-violet-600 text-white" : "text-slate-400 hover:text-white"
+              showRomanized ? "bg-primary-600 text-white" : "text-neutral-400 hover:text-white"
             }`}
           >
             {t("romanize.romaji")}
@@ -77,17 +77,17 @@ export function RomanizeButton({ trackId }: Props) {
       )}
 
       {protectedCount > 0 && !mutation.isError && (
-        <span className="text-xs text-amber-400/80">
+        <span className="text-xs text-warning-400/80">
           {t("romanize.protectedNote", { count: protectedCount })}
         </span>
       )}
       {mutation.isSuccess && (mutation.data.skipped_count ?? 0) > 0 && (
-        <span className="text-xs text-emerald-400">
+        <span className="text-xs text-success-400">
           {t("romanize.kept", { count: mutation.data.skipped_count })}
         </span>
       )}
       {mutation.isError && (
-        <span className="text-xs text-rose-400">{(mutation.error as Error).message}</span>
+        <span className="text-xs text-danger-400">{(mutation.error as Error).message}</span>
       )}
     </div>
   );

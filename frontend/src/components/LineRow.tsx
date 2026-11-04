@@ -179,15 +179,15 @@ export function LineRow({ trackId, line }: Props) {
       transition={{ duration: 0.2 }}
       className={`group relative flex flex-col gap-2 rounded-xl border p-3 backdrop-blur transition-colors sm:flex-row sm:gap-3 ${
         line.needs_review
-          ? "border-amber-500/40 bg-amber-500/[0.04]"
-          : "border-slate-800/70 bg-slate-900/40 hover:border-slate-700"
+          ? "border-warning-500/40 bg-warning-500/[0.04]"
+          : "border-neutral-800/70 bg-neutral-900/40 hover:border-neutral-700"
       }`}
     >
       <input
         value={timestamp}
         onChange={(e) => setTimestamp(e.target.value)}
         onBlur={saveLyricIfChanged}
-        className="h-fit w-[92px] shrink-0 self-start rounded-lg border border-transparent bg-slate-800/60 px-2 py-2.5 text-center font-mono text-xs text-slate-400 outline-none transition-colors hover:border-slate-700 focus:border-violet-500/50 focus:text-slate-200 focus:ring-2 focus:ring-violet-500/15"
+        className="h-fit w-[92px] shrink-0 self-start rounded-lg border border-transparent bg-neutral-800/60 px-2 py-2.5 text-center font-mono text-xs text-neutral-400 outline-none transition-colors hover:border-neutral-700 focus:border-primary-500/50 focus:text-neutral-200 focus:ring-2 focus:ring-primary-500/15"
       />
 
       <div className="flex min-w-0 flex-1 flex-col gap-1.5">
@@ -197,7 +197,7 @@ export function LineRow({ trackId, line }: Props) {
           onChange={(e) => setLyric(e.target.value)}
           onBlur={saveLyricIfChanged}
           rows={1}
-          className={`w-full resize-none overflow-hidden rounded-lg bg-slate-800/30 px-3 py-2.5 leading-snug text-slate-100 outline-none transition-colors placeholder:text-slate-600 hover:bg-slate-800/50 focus:bg-slate-800/70 focus:ring-2 focus:ring-violet-500/15 ${AUTOSIZE_CLASS}`}
+          className={`w-full resize-none overflow-hidden rounded-lg bg-neutral-800/30 px-3 py-2.5 leading-snug text-neutral-100 outline-none transition-colors placeholder:text-neutral-600 hover:bg-neutral-800/50 focus:bg-neutral-800/70 focus:ring-2 focus:ring-primary-500/15 ${AUTOSIZE_CLASS}`}
         />
 
         {/* KISS 2026-08-26: disabled, see import comment above.
@@ -213,7 +213,7 @@ export function LineRow({ trackId, line }: Props) {
             value={translation}
             onChange={(e) => handleTranslationChange(e.target.value)}
             rows={1}
-            className={`min-w-0 flex-1 resize-none overflow-hidden rounded-lg bg-slate-800/40 px-3 py-2 leading-snug text-sm text-slate-300 outline-none transition-colors placeholder:text-slate-600 hover:bg-slate-800/60 focus:bg-slate-800/80 focus:ring-2 focus:ring-violet-500/15 ${AUTOSIZE_CLASS}`}
+            className={`min-w-0 flex-1 resize-none overflow-hidden rounded-lg bg-neutral-800/40 px-3 py-2 leading-snug text-sm text-neutral-300 outline-none transition-colors placeholder:text-neutral-600 hover:bg-neutral-800/60 focus:bg-neutral-800/80 focus:ring-2 focus:ring-primary-500/15 ${AUTOSIZE_CLASS}`}
           />
           <div className="flex shrink-0 items-center gap-2 self-start sm:self-auto">
             {/* "scrape" badge dropped entirely — redundant with the amber
@@ -225,7 +225,7 @@ export function LineRow({ trackId, line }: Props) {
                 onClick={() => revertMutation.mutate()}
                 disabled={revertMutation.isPending}
                 title={t("line.revertTitle")}
-                className="shrink-0 rounded-full p-1.5 text-slate-500 transition-colors hover:bg-slate-800 hover:text-violet-400"
+                className="shrink-0 rounded-full p-1.5 text-neutral-500 transition-colors hover:bg-neutral-800 hover:text-primary-400"
               >
                 <RotateCcw className="size-3.5" />
               </button>
@@ -244,11 +244,11 @@ export function LineRow({ trackId, line }: Props) {
         )}
         */}
 
-        {error && <span className="px-1 text-xs text-rose-400">{error}</span>}
+        {error && <span className="px-1 text-xs text-danger-400">{error}</span>}
       </div>
 
       {isSaving && (
-        <Loader2 className="absolute top-3 right-3 size-3.5 animate-spin text-slate-600" />
+        <Loader2 className="absolute top-3 right-3 size-3.5 animate-spin text-neutral-600" />
       )}
     </motion.div>
   );
