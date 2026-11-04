@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useMutation } from "@tanstack/react-query";
 import { motion, AnimatePresence } from "motion/react";
+import { Trans, useTranslation } from "react-i18next";
 import { ChevronDown, ExternalLink, Globe2, Link2, Loader2, Wand2 } from "lucide-react";
 import { api } from "../api/client";
 import { useEditorStore } from "../store/editorStore";
@@ -20,6 +21,7 @@ interface Props {
  * heuristic and writes results onto lines, always flagged "perlu dicek".
  */
 export function ScrapePanel({ trackId }: Props) {
+  const { t } = useTranslation();
   const [open, setOpen] = useState(false);
   const [showManual, setShowManual] = useState(false);
   const [url, setUrl] = useState("");
@@ -55,7 +57,7 @@ export function ScrapePanel({ trackId }: Props) {
       >
         <span className="flex items-center gap-2">
           <Globe2 className="size-4" />
-          Cari terjemahan dari web (scraping)
+          {t("scrape.title")}
         </span>
         <ChevronDown className={`size-4 transition-transform ${open ? "rotate-180" : ""}`} />
       </button>
@@ -75,12 +77,10 @@ export function ScrapePanel({ trackId }: Props) {
                     translate (tombol di atas) sudah memprioritaskan Gemini/
                     LibreTranslate; scrape ini opsi terakhir, cuma dipakai
                     kalau perlu terjemahan siap-pakai dari sumber luar. */}
-                Opsi terakhir, bukan yang pertama dicoba — pakai Translate (Gemini/LibreTranslate) di
-                atas dulu. Alignment di sini cuma perkiraan posisi, dan pernah salah pasang baris tanpa
-                kelihatan jelas per-baris (baris individual tetap masuk akal, cuma ketuker sama baris
-                asli yang salah — lihat riwayat bug di{" "}
-                <code className="text-slate-400">docs/backend/fixes-2026-08-25-scrape-alignment.md</code>).
-                Hasilnya selalu ditandai <em>"perlu dicek"</em>, bukan hasil verifikasi.
+                <Trans
+                  i18nKey="scrape.disclaimer"
+                  components={{ code: <code className="text-slate-400" />, em: <em /> }}
+                />
               </p>
 
               <div className="flex flex-wrap items-center gap-2">
@@ -95,7 +95,7 @@ export function ScrapePanel({ trackId }: Props) {
                   ) : (
                     <Globe2 className="size-4" />
                   )}
-                  Cari otomatis (utatime.com)
+                  {t("scrape.auto")}
                 </motion.button>
 
                 {scrapeMutation.isSuccess && !needsManualLanguage && (
@@ -112,7 +112,7 @@ export function ScrapePanel({ trackId }: Props) {
                     ) : (
                       <Wand2 className="size-4" />
                     )}
-                    Terapkan Alignment
+                    {t("scrape.align")}
                   </motion.button>
                 )}
               </div>
@@ -124,14 +124,12 @@ export function ScrapePanel({ trackId }: Props) {
                   className="flex flex-wrap items-center gap-2 rounded-lg border border-amber-500/30 bg-amber-500/[0.06] px-3 py-2.5"
                 >
                   <span className="text-xs text-slate-400">
-                    Situs ini bukan utatime.com — bahasa hasil scrape gak bisa dideteksi otomatis.
-                    Isi kode bahasanya (mis. <code>en</code>) biar fitur translate tahu ini bahasa
-                    apa:
+                    <Trans i18nKey="scrape.languagePrompt" components={{ code: <code /> }} />
                   </span>
                   <input
                     value={scrapedLanguage}
                     onChange={(e) => setScrapedLanguage(e.target.value)}
-                    placeholder="en"
+                    placeholder={t("scrape.languagePlaceholder")}
                     className="w-20 rounded-lg border border-slate-800 bg-slate-950/60 px-2.5 py-1.5 text-center text-sm text-slate-200 outline-none transition-colors placeholder:text-slate-600 focus:border-violet-500/50 focus:ring-2 focus:ring-violet-500/15"
                   />
                   <motion.button
@@ -145,7 +143,7 @@ export function ScrapePanel({ trackId }: Props) {
                     ) : (
                       <Wand2 className="size-4" />
                     )}
-                    Terapkan Alignment
+                    {t("scrape.align")}
                   </motion.button>
                 </motion.div>
               )}
@@ -165,14 +163,13 @@ export function ScrapePanel({ trackId }: Props) {
                     className="inline-flex w-fit items-center gap-1.5 text-xs text-emerald-400 hover:underline"
                   >
                     <ExternalLink className="size-3.5" />
-                    {scrapeMutation.data.auto_discovered ? "Ditemukan otomatis: " : "Sumber: "}
+                    {scrapeMutation.data.auto_discovered ? t("scrape.autoDiscovered") : t("scrape.source")}
                     {scrapeMutation.data.resolved_url}
                   </a>
 
                   {scrapeMutation.data.raw_romanized && (
                     <p className="text-xs text-sky-400">
-                      Romanisasi resmi dari situs ini ikut terambil — akan menggantikan romanisasi
-                      otomatis pada baris yang ter-alignment.
+                      {t("scrape.romanizedTaken")}
                     </p>
                   )}
 
@@ -181,8 +178,9 @@ export function ScrapePanel({ trackId }: Props) {
                       onClick={() => setShowRaw((v) => !v)}
                       className="w-full px-3 py-2 text-left text-xs text-slate-500 hover:text-slate-300"
                     >
-                      {showRaw ? "Sembunyikan" : "Lihat"} teks mentah hasil scrape (
-                      {scrapeMutation.data.raw_text.split("\n").length} baris)
+                      {t(showRaw ? "scrape.hideRaw" : "scrape.showRaw", {
+                        count: scrapeMutation.data.raw_text.split("\n").length,
+                      })}
                     </button>
                     {showRaw && (
                       <pre className="max-h-48 overflow-auto border-t border-slate-800 p-3 text-xs whitespace-pre-wrap text-slate-400">
@@ -198,9 +196,10 @@ export function ScrapePanel({ trackId }: Props) {
               )}
               {alignMutation.isSuccess && (
                 <p className="text-xs text-emerald-400">
-                  {alignMutation.data.lines.length} baris ter-alignment (terjemahan
-                  {scrapeMutation.data?.raw_romanized ? " + romanisasi" : ""}) — cek satu-satu,
-                  baris ditandai amber di bawah.
+                  {t(
+                    scrapeMutation.data?.raw_romanized ? "scrape.alignedWithRomanized" : "scrape.aligned",
+                    { count: alignMutation.data.lines.length },
+                  )}
                 </p>
               )}
 
@@ -210,12 +209,12 @@ export function ScrapePanel({ trackId }: Props) {
                     onClick={() => setShowManual(true)}
                     className="text-xs text-slate-500 hover:text-slate-300"
                   >
-                    atau paste link halaman manual →
+                    {t("scrape.pasteLink")}
                   </button>
                 ) : (
                   <div className="flex flex-col gap-2">
                     <p className="text-xs text-slate-500">
-                      Cari sendiri halaman yang berisi terjemahan lagu ini, lalu paste link-nya:
+                      {t("scrape.pasteLinkPrompt")}
                     </p>
                     <div className="flex flex-wrap items-center gap-2">
                       <div className="relative min-w-0 flex-1">
@@ -223,7 +222,7 @@ export function ScrapePanel({ trackId }: Props) {
                         <input
                           value={url}
                           onChange={(e) => setUrl(e.target.value)}
-                          placeholder="https://…"
+                          placeholder={t("scrape.urlPlaceholder")}
                           className="w-full rounded-lg border border-slate-800 bg-slate-950/60 py-2 pr-3 pl-9 text-sm text-slate-200 outline-none transition-colors placeholder:text-slate-600 focus:border-violet-500/50 focus:ring-2 focus:ring-violet-500/15"
                         />
                       </div>
@@ -238,7 +237,7 @@ export function ScrapePanel({ trackId }: Props) {
                         ) : (
                           <Globe2 className="size-4" />
                         )}
-                        Scrape halaman ini
+                        {t("scrape.scrapePage")}
                       </motion.button>
                     </div>
                   </div>

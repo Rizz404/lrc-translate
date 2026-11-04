@@ -1,4 +1,5 @@
 import { motion, AnimatePresence } from "motion/react";
+import { useTranslation } from "react-i18next";
 import type { Method } from "../api/types";
 
 const STYLES: Record<Method, string> = {
@@ -7,14 +8,6 @@ const STYLES: Record<Method, string> = {
   ai: "bg-fuchsia-500/15 text-fuchsia-300 ring-1 ring-fuchsia-500/30",
   scrape: "bg-amber-500/15 text-amber-300 ring-1 ring-amber-500/30",
   manual: "bg-emerald-500/15 text-emerald-300 ring-1 ring-emerald-500/30",
-};
-
-const LABELS: Record<Method, string> = {
-  none: "belum diterjemahkan",
-  mt: "MT",
-  ai: "AI",
-  scrape: "scrape",
-  manual: "manual",
 };
 
 interface Props {
@@ -27,6 +20,7 @@ interface Props {
 // needs_review (see LineRow.tsx), and EditorPage now surfaces one summary
 // disclaimer above the line list, so the per-badge text was pure noise.
 export function MethodBadge({ method }: Props) {
+  const { t } = useTranslation();
   return (
     <AnimatePresence mode="wait" initial={false}>
       <motion.span
@@ -37,7 +31,7 @@ export function MethodBadge({ method }: Props) {
         transition={{ duration: 0.15 }}
         className={`inline-flex shrink-0 items-center whitespace-nowrap rounded-full px-2.5 py-1 text-xs font-medium ${STYLES[method]}`}
       >
-        {LABELS[method]}
+        {t(`method.${method}`)}
       </motion.span>
     </AnimatePresence>
   );

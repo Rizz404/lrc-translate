@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { AnimatePresence, motion } from "motion/react";
+import { Trans, useTranslation } from "react-i18next";
 import { Check, Copy, Download, SlidersHorizontal } from "lucide-react";
 import type { Track } from "../api/types";
 import { useEditorStore } from "../store/editorStore";
@@ -50,6 +51,7 @@ function legacyCopy(text: string): boolean {
 }
 
 export function CopyDownloadBar({ track }: Props) {
+  const { t } = useTranslation();
   const showRomanized = useEditorStore((s) => s.showRomanized);
   const [copied, setCopied] = useState(false);
   const [copyError, setCopyError] = useState<string | null>(null);
@@ -63,7 +65,7 @@ export function CopyDownloadBar({ track }: Props) {
       await navigator.clipboard.writeText(text);
     } catch {
       if (!legacyCopy(text)) {
-        setCopyError("Gagal menyalin ke clipboard. Pilih teksnya manual.");
+        setCopyError(t("copyBar.copyFailed"));
         return;
       }
     }
@@ -92,7 +94,7 @@ export function CopyDownloadBar({ track }: Props) {
         className="inline-flex items-center gap-2 rounded-lg border border-slate-800 bg-slate-900/60 px-3.5 py-2 text-sm font-medium text-slate-300 transition-colors hover:border-slate-700 hover:text-white"
       >
         {copied ? <Check className="size-4 text-emerald-400" /> : <Copy className="size-4" />}
-        {copied ? "Tersalin!" : "Copy LRC"}
+        {copied ? t("copyBar.copied") : t("copyBar.copy")}
       </motion.button>
       <motion.button
         whileTap={{ scale: 0.95 }}
@@ -100,13 +102,13 @@ export function CopyDownloadBar({ track }: Props) {
         className="inline-flex items-center gap-2 rounded-lg border border-slate-800 bg-slate-900/60 px-3.5 py-2 text-sm font-medium text-slate-300 transition-colors hover:border-slate-700 hover:text-white"
       >
         <Download className="size-4" />
-        Download .lrc
+        {t("copyBar.download")}
       </motion.button>
       <motion.button
         whileTap={{ scale: 0.95 }}
         onClick={() => setOptionsOpen((v) => !v)}
-        title="Opsi export"
-        aria-label="Opsi export"
+        title={t("copyBar.options")}
+        aria-label={t("copyBar.options")}
         className={`inline-flex items-center justify-center rounded-lg border px-2.5 py-2 text-sm font-medium transition-colors ${
           optionsOpen
             ? "border-violet-500/50 bg-violet-500/10 text-violet-300"
@@ -126,9 +128,11 @@ export function CopyDownloadBar({ track }: Props) {
             className="absolute top-full left-0 z-20 mt-2 w-64 rounded-xl border border-slate-800 bg-slate-950/95 p-3.5 shadow-xl shadow-black/40 backdrop-blur"
           >
             <p className="text-xs text-slate-500">
-              Lirik utama ikut tampilan editor saat ini:{" "}
-              <span className="text-slate-300">{showRomanized ? "Romaji" : "Asli"}</span> — ganti
-              lewat tombol Asli/Romaji di sebelah Romanize.
+              <Trans
+                i18nKey="copyBar.mainLyricHint"
+                values={{ mode: showRomanized ? t("romanize.romaji") : t("romanize.original") }}
+                components={{ mode: <span className="text-slate-300" /> }}
+              />
             </p>
 
             <div className="mt-3 border-t border-slate-800/70 pt-3">
@@ -141,10 +145,10 @@ export function CopyDownloadBar({ track }: Props) {
                   }
                   className="accent-violet-500"
                 />
-                Sertakan terjemahan
+                {t("copyBar.includeTranslation")}
               </label>
               <p className="mt-1 pl-6 text-[11px] text-slate-500">
-                Ditambahkan sebagai baris kedua di timestamp yang sama.
+                {t("copyBar.includeTranslationHint")}
               </p>
               <label
                 className={`mt-1.5 flex items-center gap-2 pl-6 text-sm ${
@@ -160,7 +164,7 @@ export function CopyDownloadBar({ track }: Props) {
                   }
                   className="accent-violet-500"
                 />
-                Bungkus dengan kurung "( )"
+                {t("copyBar.wrapInParens")}
               </label>
             </div>
           </motion.div>

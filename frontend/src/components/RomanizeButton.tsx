@@ -1,5 +1,6 @@
 import { useMutation } from "@tanstack/react-query";
 import { motion } from "motion/react";
+import { useTranslation } from "react-i18next";
 import { CaseSensitive, Loader2 } from "lucide-react";
 import { api } from "../api/client";
 import { useEditorStore } from "../store/editorStore";
@@ -18,6 +19,7 @@ interface Props {
  * didn't change.
  */
 export function RomanizeButton({ trackId }: Props) {
+  const { t } = useTranslation();
   const track = useEditorStore((s) => s.track);
   const patchLine = useEditorStore((s) => s.patchLine);
   const showRomanized = useEditorStore((s) => s.showRomanized);
@@ -42,11 +44,7 @@ export function RomanizeButton({ trackId }: Props) {
         whileTap={{ scale: 0.95 }}
         onClick={() => mutation.mutate()}
         disabled={mutation.isPending}
-        title={
-          protectedCount > 0
-            ? `${protectedCount} baris sudah pakai romanisasi resmi/manual — itu tidak akan ditimpa, cuma baris lain yang diproses.`
-            : undefined
-        }
+        title={protectedCount > 0 ? t("romanize.protectedTitle", { count: protectedCount }) : undefined}
         className="inline-flex items-center gap-2 rounded-lg border border-slate-800 bg-slate-900/60 px-3.5 py-2 text-sm font-medium text-slate-300 transition-colors hover:border-slate-700 hover:text-white disabled:cursor-not-allowed disabled:opacity-50"
       >
         {mutation.isPending ? (
@@ -54,7 +52,7 @@ export function RomanizeButton({ trackId }: Props) {
         ) : (
           <CaseSensitive className="size-4" />
         )}
-        Romanize
+        {t("romanize.button")}
       </motion.button>
 
       {hasAnyRomanized && (
@@ -65,7 +63,7 @@ export function RomanizeButton({ trackId }: Props) {
               !showRomanized ? "bg-violet-600 text-white" : "text-slate-400 hover:text-white"
             }`}
           >
-            Asli
+            {t("romanize.original")}
           </button>
           <button
             onClick={() => setShowRomanized(true)}
@@ -73,19 +71,19 @@ export function RomanizeButton({ trackId }: Props) {
               showRomanized ? "bg-violet-600 text-white" : "text-slate-400 hover:text-white"
             }`}
           >
-            Romaji
+            {t("romanize.romaji")}
           </button>
         </div>
       )}
 
       {protectedCount > 0 && !mutation.isError && (
         <span className="text-xs text-amber-400/80">
-          {protectedCount} baris romanisasi resmi/manual — tidak akan ditimpa
+          {t("romanize.protectedNote", { count: protectedCount })}
         </span>
       )}
       {mutation.isSuccess && (mutation.data.skipped_count ?? 0) > 0 && (
         <span className="text-xs text-emerald-400">
-          {mutation.data.skipped_count} baris dipertahankan
+          {t("romanize.kept", { count: mutation.data.skipped_count })}
         </span>
       )}
       {mutation.isError && (

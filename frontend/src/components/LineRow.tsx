@@ -1,6 +1,7 @@
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { useMutation } from "@tanstack/react-query";
 import { motion } from "motion/react";
+import { useTranslation } from "react-i18next";
 import { RotateCcw, Loader2 } from "lucide-react";
 import type { Line } from "../api/types";
 import { api } from "../api/client";
@@ -82,6 +83,7 @@ const AUTOSIZE_CLASS = "[field-sizing:content]";
  * is never lost.
  */
 export function LineRow({ trackId, line }: Props) {
+  const { t } = useTranslation();
   const patchLine = useEditorStore((s) => s.patchLine);
   const showRomanized = useEditorStore((s) => s.showRomanized);
   const usingRomanized = showRomanized && !!line.romanized;
@@ -207,7 +209,7 @@ export function LineRow({ trackId, line }: Props) {
         <div className="flex flex-col gap-1.5 sm:flex-row sm:items-center sm:gap-2">
           <textarea
             ref={translationRef}
-            placeholder="Terjemahan…"
+            placeholder={t("line.translationPlaceholder")}
             value={translation}
             onChange={(e) => handleTranslationChange(e.target.value)}
             rows={1}
@@ -222,7 +224,7 @@ export function LineRow({ trackId, line }: Props) {
               <button
                 onClick={() => revertMutation.mutate()}
                 disabled={revertMutation.isPending}
-                title="Kembalikan ke saran awal (kalau ada)"
+                title={t("line.revertTitle")}
                 className="shrink-0 rounded-full p-1.5 text-slate-500 transition-colors hover:bg-slate-800 hover:text-violet-400"
               >
                 <RotateCcw className="size-3.5" />

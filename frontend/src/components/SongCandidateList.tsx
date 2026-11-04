@@ -1,4 +1,5 @@
 import { motion } from "motion/react";
+import { useTranslation } from "react-i18next";
 import { Disc3, Loader2, MicVocal } from "lucide-react";
 import type { SearchResult } from "../api/types";
 
@@ -26,10 +27,12 @@ const itemVariants = {
 };
 
 export function SongCandidateList({ results, onSelect, pendingId }: Props) {
+  const { t } = useTranslation();
+
   if (results.length === 0) {
     return (
       <p className="py-10 text-center text-sm text-slate-500">
-        Tidak ada hasil. Coba judul lain.
+        {t("candidates.empty")}
       </p>
     );
   }
@@ -67,14 +70,14 @@ export function SongCandidateList({ results, onSelect, pendingId }: Props) {
                   get clipped or push the duration off-screen (mobile report:
                   couldn't see the full duration). */}
               <div className="mt-0.5 text-xs break-words text-slate-500">
-                {r.album || "tanpa album"}
+                {r.album || t("candidates.noAlbum")}
               </div>
 
               <div className="mt-1 flex flex-wrap items-center gap-1.5 text-xs text-slate-500">
                 <span className="font-mono">{formatDuration(r.duration_ms)}</span>
                 {!r.has_synced_lyrics && (
                   <span className="rounded-full bg-amber-500/10 px-2 py-0.5 text-amber-400">
-                    tanpa synced lyrics
+                    {t("candidates.noSyncedLyrics")}
                   </span>
                 )}
               </div>

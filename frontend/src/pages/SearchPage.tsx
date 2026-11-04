@@ -2,6 +2,7 @@ import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { useMutation } from "@tanstack/react-query";
 import { useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "motion/react";
+import { useTranslation } from "react-i18next";
 import { Search, Music2, Loader2 } from "lucide-react";
 import type { SearchResult } from "../api/types";
 import { api } from "../api/client";
@@ -21,6 +22,7 @@ function normalizeQuery(s: string): string {
 }
 
 export function SearchPage() {
+  const { t } = useTranslation();
   const navigate = useNavigate();
   const title = useSearchStore((s) => s.title);
   const setTitle = useSearchStore((s) => s.setTitle);
@@ -87,7 +89,7 @@ export function SearchPage() {
           lrc-translate
         </h1>
         <p className="mt-3 max-w-md text-balance text-slate-400">
-          Cari lagu, tarik lirik tersinkron, terjemahkan per baris — semua dalam satu editor.
+          {t("search.tagline")}
         </p>
       </motion.div>
 
@@ -108,7 +110,7 @@ export function SearchPage() {
         <Search className="pointer-events-none absolute top-1/2 left-4 size-5 -translate-y-1/2 text-slate-500 transition-colors group-focus-within:text-violet-400" />
         <input
           autoFocus
-          placeholder="Cari judul lagu…"
+          placeholder={t("search.placeholder")}
           value={title}
           onChange={(e) => setTitle(e.target.value)}
           className="w-full rounded-2xl border border-slate-800 bg-slate-900/70 py-4 pr-12 pl-12 text-base text-slate-100 shadow-lg shadow-black/20 outline-none backdrop-blur transition-all placeholder:text-slate-500 focus:border-violet-500/60 focus:ring-4 focus:ring-violet-500/15"

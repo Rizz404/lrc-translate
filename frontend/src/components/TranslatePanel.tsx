@@ -1,6 +1,8 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { motion } from "motion/react";
+import { useTranslation } from "react-i18next";
+import type { TFunction } from "i18next";
 import { Languages, Loader2, Trash2 } from "lucide-react";
 import { api } from "../api/client";
 import { useEditorStore } from "../store/editorStore";
@@ -25,15 +27,15 @@ interface Props {
  * NMT has no single "model" the way an LLM does), or an unrecognized
  * provider.
  */
-function translatingCaption(health: HealthResponse | undefined): string {
+function translatingCaption(health: HealthResponse | undefined, t: TFunction): string {
   const model = health?.translate_model ? ` (${health.translate_model})` : "";
   switch (health?.translate_provider) {
     case "localllm":
-      return `Menerjemahkan pakai LLM lokal${model} — makin panjang lagunya, makin lama (bisa beberapa menit untuk lagu penuh).`;
+      return t("translate.captionLocalLlm", { model });
     case "gemini":
-      return `Menerjemahkan pakai Gemini${model}…`;
+      return t("translate.captionGemini", { model });
     default:
-      return "Menerjemahkan…";
+      return t("translate.captionDefault");
   }
 }
 
@@ -81,6 +83,7 @@ function dominantScrapeLang(lines: Line[]): string {
  * sebagai gantinya, bukan cuma diam-diam gagal.
  */
 export function TranslatePanel({ trackId }: Props) {
+  const { t } = useTranslation();
   const track = useEditorStore((s) => s.track);
   const patchLine = useEditorStore((s) => s.patchLine);
   const lines = track?.lines ?? [];
@@ -108,12 +111,12 @@ export function TranslatePanel({ trackId }: Props) {
   const scrapeLang = useMemo(() => dominantScrapeLang(lines), [lines]);
   const originalLang = track?.language ?? "";
 
-  const blockedReason: string | null = !originalLang
+  const blockedReason = !originalLang
     ? null
     : targetLang === originalLang
-      ? "sama dengan bahasa lirik asli"
+      ? ("translate.blockedOriginal" as const)
       : source === "scrape" && !!scrapeLang && targetLang === scrapeLang
-        ? "sama dengan bahasa hasil scrape"
+        ? ("translate.blockedScrape" as const)
         : null;
 
   // Cached indefinitely and never retried: the active provider is a
@@ -152,21 +155,21 @@ export function TranslatePanel({ trackId }: Props) {
               behind the destructive "timpa lirik asli" option visually. */}
           <button
             onClick={() => handleSourceChange("scrape")}
-            title="Terjemahkan dari terjemahan hasil scrape yang sudah ada, bukan lirik asli"
+            title={t("translate.sourceScrapeTitle")}
             className={`rounded-md px-2 py-1 font-medium transition-colors ${
               source === "scrape" ? "bg-violet-600 text-white" : "text-slate-400 hover:text-slate-200"
             }`}
           >
-            Dari data scrape
+            {t("translate.sourceScrape")}
           </button>
           <button
             onClick={() => handleSourceChange("original")}
-            title="Terjemahkan dari lirik asli, timpa apa pun yang ada"
+            title={t("translate.sourceOriginalTitle")}
             className={`rounded-md px-2 py-1 font-medium transition-colors ${
               source === "original" ? "bg-violet-600 text-white" : "text-slate-400 hover:text-slate-200"
             }`}
           >
-            Timpa dari lirik asli
+            {t("translate.sourceOriginal")}
           </button>
         </div>
       )}
@@ -183,7 +186,7 @@ export function TranslatePanel({ trackId }: Props) {
           return (
             <option key={l.code} value={l.code} disabled={disabled}>
               {l.label}
-              {disabled ? " (sudah dalam bahasa ini)" : ""}
+              {disabled ? t("translate.alreadyInLang") : ""}
             </option>
           );
         })}
@@ -197,7 +200,7 @@ export function TranslatePanel({ trackId }: Props) {
           whileTap={{ scale: 0.95 }}
           onClick={() => clearMutation.mutate()}
           disabled={clearMutation.isPending}
-          title={`Target lang ${blockedReason} — hapus translation sebagai gantinya`}
+          title={t("translate.clearTitle", { reason: t(blockedReason) })}
           className="inline-flex items-center gap-2 rounded-lg bg-rose-600/90 px-3.5 py-2 text-sm font-medium text-white shadow-md shadow-rose-600/20 transition-colors hover:bg-rose-500 disabled:cursor-not-allowed disabled:bg-slate-700 disabled:shadow-none"
         >
           {clearMutation.isPending ? (
@@ -205,7 +208,7 @@ export function TranslatePanel({ trackId }: Props) {
           ) : (
             <Trash2 className="size-4" />
           )}
-          Hapus translation
+          {t("translate.clear")}
         </motion.button>
       ) : (
         <motion.button
@@ -220,12 +223,12 @@ export function TranslatePanel({ trackId }: Props) {
           {translateMutation.isPending ? (
             <>
               <Loader2 className="size-4 animate-spin" />
-              Menerjemahkan… {formatElapsed(translateElapsed)}
+              {t("translate.inProgress", { elapsed: formatElapsed(translateElapsed) })}
             </>
           ) : (
             <>
               <Languages className="size-4" />
-              Translate
+              {t("translate.button")}
             </>
           )}
         </motion.button>
@@ -237,7 +240,7 @@ export function TranslatePanel({ trackId }: Props) {
           animate={{ opacity: 1 }}
           className="text-xs text-slate-500"
         >
-          {translatingCaption(healthQuery.data)}
+          {translatingCaption(healthQuery.data, t)}
         </motion.span>
       )}
 
@@ -247,15 +250,24 @@ export function TranslatePanel({ trackId }: Props) {
           animate={{ opacity: 1 }}
           className="text-xs text-slate-500"
         >
-          {translateMutation.data.lines.length} baris diterjemahkan
-          {translateMutation.data.failed?.length ? `, ${translateMutation.data.failed.length} gagal` : ""}
-          {" · selesai dalam "}
-          {formatElapsed(translateElapsed)}
+          {translateMutation.data.failed?.length
+            ? t("translate.resultWithFailed", {
+                count: translateMutation.data.lines.length,
+                failed: translateMutation.data.failed.length,
+                elapsed: formatElapsed(translateElapsed),
+              })
+            : t("translate.result", {
+                count: translateMutation.data.lines.length,
+                elapsed: formatElapsed(translateElapsed),
+              })}
         </motion.span>
       )}
       {translateMutation.isError && (
         <span className="text-xs text-rose-400">
-          {(translateMutation.error as Error).message} (setelah {formatElapsed(translateElapsed)})
+          {t("translate.errorAfter", {
+            message: (translateMutation.error as Error).message,
+            elapsed: formatElapsed(translateElapsed),
+          })}
         </span>
       )}
       {clearMutation.isSuccess && (
@@ -264,7 +276,7 @@ export function TranslatePanel({ trackId }: Props) {
           animate={{ opacity: 1 }}
           className="text-xs text-slate-500"
         >
-          {clearMutation.data.lines.length} baris dihapus translation-nya
+          {t("translate.cleared", { count: clearMutation.data.lines.length })}
         </motion.span>
       )}
       {clearMutation.isError && (

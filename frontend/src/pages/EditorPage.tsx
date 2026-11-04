@@ -2,6 +2,7 @@ import { useEffect, useLayoutEffect, useState } from "react";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { useNavigate, useParams } from "react-router-dom";
 import { motion } from "motion/react";
+import { useTranslation } from "react-i18next";
 import { AlertTriangle, ArrowLeft, Eraser, Loader2, RotateCcw } from "lucide-react";
 // Sparkles dropped from the import above — it was only used by the
 // "Bandingkan dengan AI" button, commented out below (KISS 2026-08-26).
@@ -14,6 +15,7 @@ import { RomanizeButton } from "../components/RomanizeButton";
 import { ScrapePanel } from "../components/ScrapePanel";
 
 export function EditorPage() {
+  const { t } = useTranslation();
   const { trackId } = useParams<{ trackId: string }>();
   const navigate = useNavigate();
 
@@ -92,11 +94,7 @@ export function EditorPage() {
   // });
 
   function handleResetAllLines() {
-    if (
-      window.confirm(
-        "Hapus semua romanisasi/terjemahan dan kembalikan tiap baris ke LRC asli? Aksi ini tidak bisa dibatalkan.",
-      )
-    ) {
+    if (window.confirm(t("editor.resetAllConfirm"))) {
       resetTrackMutation.mutate();
     }
   }
@@ -126,7 +124,7 @@ export function EditorPage() {
         className="mb-4 inline-flex items-center gap-1.5 text-sm text-slate-500 transition-colors hover:text-slate-300"
       >
         <ArrowLeft className="size-4" />
-        Cari lagu lain
+        {t("editor.back")}
       </button>
 
       <motion.h1
@@ -155,16 +153,16 @@ export function EditorPage() {
       <div className="mt-3 flex flex-wrap items-center gap-2">
         <button
           onClick={() => setScrapeResetKey((k) => k + 1)}
-          title="Bersihkan hasil pencarian scraping (URL, teks mentah, status alignment) tanpa mengubah baris yang sudah ter-alignment"
+          title={t("editor.resetScrapeTitle")}
           className="inline-flex items-center gap-1.5 rounded-lg px-2 py-1 text-xs text-slate-500 transition-colors hover:bg-slate-900/60 hover:text-slate-300"
         >
           <Eraser className="size-3.5" />
-          Reset pencarian scraping
+          {t("editor.resetScrape")}
         </button>
         <button
           onClick={handleResetAllLines}
           disabled={resetTrackMutation.isPending}
-          title="Hapus semua romanisasi/terjemahan, kembalikan tiap baris ke LRC asli"
+          title={t("editor.resetAllTitle")}
           className="inline-flex items-center gap-1.5 rounded-lg px-2 py-1 text-xs text-rose-400/80 transition-colors hover:bg-rose-950/30 hover:text-rose-300 disabled:cursor-not-allowed disabled:opacity-50"
         >
           {resetTrackMutation.isPending ? (
@@ -172,7 +170,7 @@ export function EditorPage() {
           ) : (
             <RotateCcw className="size-3.5" />
           )}
-          Reset semua baris
+          {t("editor.resetAll")}
         </button>
         {resetTrackMutation.isError && (
           <span className="text-xs text-rose-400">{(resetTrackMutation.error as Error).message}</span>
@@ -201,13 +199,7 @@ export function EditorPage() {
         <div className="mt-3 flex flex-col gap-2 rounded-lg border border-amber-500/30 bg-amber-500/[0.06] px-3 py-2 text-xs text-amber-300">
           <div className="flex flex-wrap items-center gap-2">
             <AlertTriangle className="size-3.5 shrink-0" />
-            <span>
-              {needsReviewCount} baris perlu dicek manual — belum tentu semuanya salah, tapi belum ada
-              yang mengonfirmasi. Bisa karena hasil scrape+align (posisinya cuma perkiraan, bisa salah
-              pasangan dengan baris aslinya) atau hasil MT/AI (terjemahan otomatis, belum tentu 100%
-              akurat maknanya). Ditandai border kuning di bawah, cek satu-satu — flag-nya hilang begitu
-              baris itu diedit manual.
-            </span>
+            <span>{t("editor.needsReview", { count: needsReviewCount })}</span>
           </div>
           {/* KISS 2026-08-26: "Bandingkan dengan AI" disabled, not deleted —
               see aiReferenceMutation comment above and
