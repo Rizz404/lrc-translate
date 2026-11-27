@@ -13,16 +13,34 @@ permissions:
 jobs:
   backend:
     name: Backend
-    uses: Rizz404/platform-workflows/.github/workflows/ci-go.yaml@61e630334eaf1e4c22c6f70e0866145cccf789b3 # v0.1.0
+    uses: Rizz404/platform-workflows/.github/workflows/ci-go.yaml@25892e396db37350500bcbd5eca0d6f6f5b23ca1 # v0.2.0
     with:
       working-directory: backend
       go-version: "1.27.3"
 
   frontend:
     name: Frontend
-    uses: Rizz404/platform-workflows/.github/workflows/ci-node.yaml@61e630334eaf1e4c22c6f70e0866145cccf789b3 # v0.1.0
+    uses: Rizz404/platform-workflows/.github/workflows/ci-node.yaml@25892e396db37350500bcbd5eca0d6f6f5b23ca1 # v0.2.0
     with:
       working-directory: frontend
       node-version: "26.13.1"
       run-lint: true
       run-tests: false
+
+  container:
+    name: Container
+    needs: [backend, frontend]
+    uses: Rizz404/platform-workflows/.github/workflows/container-build.yaml@25892e396db37350500bcbd5eca0d6f6f5b23ca1 # v0.2.0
+    with:
+      image-name: docker.io/rizz404/lrc-translate
+      context: .
+      dockerfile: Dockerfile
+      container-port: 8080
+      health-path: /api/health
+      smoke-env: |
+        TRANSLATE_PROVIDER=libretranslate
+        LIBRETRANSLATE_URL=http://127.0.0.1:5000
+      publish: true
+    secrets:
+      registry-username: ${{ secrets.DOCKERHUB_USERNAME }}
+      registry-token: ${{ secrets.DOCKERHUB_TOKEN }}
