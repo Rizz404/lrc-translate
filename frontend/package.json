@@ -19,7 +19,7 @@
     "react": "^19.2.8",
     "react-dom": "^19.2.8",
     "react-i18next": "^17.1.12",
-    "react-router-dom": "^7.18.2",
+    "react-router-dom": "^7.18.6",
     "tailwindcss": "^4.3.3",
     "zustand": "^5.0.15"
   },
