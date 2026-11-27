@@ -30,7 +30,7 @@ jobs:
   container:
     name: Container
     needs: [backend, frontend]
-    uses: Rizz404/platform-workflows/.github/workflows/container-build.yaml@25892e396db37350500bcbd5eca0d6f6f5b23ca1 # v0.2.0
+    uses: Rizz404/platform-workflows/.github/workflows/container-build.yaml@3b718c1b7d39bdc6beb6d2d1c77372cad29128d5 # v0.2.1
     with:
       image-name: docker.io/rizz404/lrc-translate
       context: .
@@ -41,6 +41,6 @@ jobs:
         TRANSLATE_PROVIDER=libretranslate
         LIBRETRANSLATE_URL=http://127.0.0.1:5000
       publish: true
+      registry-username: ${{ vars.DOCKERHUB_USERNAME }}
     secrets:
-      registry-username: ${{ secrets.DOCKERHUB_USERNAME }}
       registry-token: ${{ secrets.DOCKERHUB_TOKEN }}
