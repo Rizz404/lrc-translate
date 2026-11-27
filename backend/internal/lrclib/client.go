@@ -27,14 +27,14 @@ func New(baseURL string) *Client {
 
 // Track is one candidate result from LRCLIB, as returned by /search and /get.
 type Track struct {
-	ID            int64   `json:"id"`
-	TrackName     string  `json:"trackName"`
-	ArtistName    string  `json:"artistName"`
-	AlbumName     string  `json:"albumName"`
-	Duration      float64 `json:"duration"` // seconds
-	Instrumental  bool    `json:"instrumental"`
-	PlainLyrics   string  `json:"plainLyrics"`
-	SyncedLyrics  string  `json:"syncedLyrics"`
+	ID           int64   `json:"id"`
+	TrackName    string  `json:"trackName"`
+	ArtistName   string  `json:"artistName"`
+	AlbumName    string  `json:"albumName"`
+	Duration     float64 `json:"duration"` // seconds
+	Instrumental bool    `json:"instrumental"`
+	PlainLyrics  string  `json:"plainLyrics"`
+	SyncedLyrics string  `json:"syncedLyrics"`
 }
 
 // Search queries LRCLIB by track title and artist name, returning candidate

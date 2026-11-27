@@ -125,7 +125,7 @@ func main() {
 	server := httpapi.NewServer(gdb, lrclibClient, translator, resolvedProvider, resolvedIsLLM, resolvedModel, romanizer)
 	router := httpapi.NewRouter(server, cfg.AllowedOrigin, cfg.StaticDir)
 
-	log.Printf("listening on :%s (db driver=%s dsn=%s)", cfg.Port, cfg.DBDriver, cfg.DBDSN)
+	log.Printf("listening on :%s (db driver=%s)", cfg.Port, cfg.DBDriver)
 	if err := router.Run(":" + cfg.Port); err != nil {
 		log.Fatalf("server stopped: %v", err)
 	}

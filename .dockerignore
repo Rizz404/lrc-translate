@@ -15,3 +15,17 @@ backend/*.sqlite
 **/.env
 **/.env.*
 !**/.env.example
+
+**/*.pem
+**/*.key
+**/secrets/
+**/*.sqlite
+**/*.sqlite3
+**/*.sqlite-wal
+**/*.sqlite-shm
+**/*.sqlite3-wal
+**/*.sqlite3-shm
+**/backups/
+**/coverage/
+**/coverage.out
+**/coverage.html
