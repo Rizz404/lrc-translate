@@ -41,9 +41,9 @@ func TestToRomaji_SokuonAcrossTokenBoundary(t *testing.T) {
 	}
 
 	cases := map[string]string{
-		"知ってる":  "shitteru",
+		"知ってる":   "shitteru",
 		"劣ってるのは": "ototteru no ha",
-		"解ってるよ": "wakatteru yo",
+		"解ってるよ":  "wakatteru yo",
 	}
 	for input, want := range cases {
 		got := r.ToRomaji(input)
