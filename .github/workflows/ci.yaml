@@ -1,0 +1,28 @@
+name: Continuous Integration
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  backend:
+    name: Backend
+    uses: Rizz404/platform-workflows/.github/workflows/ci-go.yml@PLATFORM_SHA
+    with:
+      working-directory: backend
+      go-version: "1.27.3"
+
+  frontend:
+    name: Frontend
+    uses: Rizz404/platform-workflows/.github/workflows/ci-node.yml@PLATFORM_SHA
+    with:
+      working-directory: frontend
+      node-version: "26.13.1"
+      run-lint: true
+      run-tests: false
