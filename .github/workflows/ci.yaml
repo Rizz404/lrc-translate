@@ -13,14 +13,14 @@ permissions:
 jobs:
   backend:
     name: Backend
-    uses: Rizz404/platform-workflows/.github/workflows/ci-go.yml@PLATFORM_SHA
+    uses: Rizz404/platform-workflows/.github/workflows/ci-go.yaml@61e630334eaf1e4c22c6f70e0866145cccf789b3 # v0.1.0
     with:
       working-directory: backend
       go-version: "1.27.3"
 
   frontend:
     name: Frontend
-    uses: Rizz404/platform-workflows/.github/workflows/ci-node.yml@PLATFORM_SHA
+    uses: Rizz404/platform-workflows/.github/workflows/ci-node.yaml@61e630334eaf1e4c22c6f70e0866145cccf789b3 # v0.1.0
     with:
       working-directory: frontend
       node-version: "26.13.1"
