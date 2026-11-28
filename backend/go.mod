@@ -9,7 +9,7 @@ require (
 	github.com/gojp/kana v0.1.0
 	github.com/google/uuid v1.6.0
 	github.com/ikawaha/kagome-dict/ipa v1.2.6
-	github.com/ikawaha/kagome/v2 v2.11.0
+	github.com/ikawaha/kagome/v2 v2.11.1
 	github.com/joho/godotenv v1.5.1
 	github.com/prometheus/client_golang v1.25.0
 	github.com/temoto/robotstxt v1.1.2
