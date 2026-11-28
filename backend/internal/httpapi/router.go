@@ -12,6 +12,7 @@ import (
 	"gorm.io/gorm"
 
 	"lrc-translate/backend/internal/lrclib"
+	"lrc-translate/backend/internal/observability"
 	"lrc-translate/backend/internal/romanize"
 )
 
@@ -79,7 +80,10 @@ func NewServer(db *gorm.DB, lrclibClient *lrclib.Client, translator Translator, 
 // any unmatched non-/api route so that client-side routing works on refresh
 // — this is what lets a single container serve both the API and the UI.
 func NewRouter(s *Server, allowedOrigin, staticDir string) *gin.Engine {
-	r := gin.Default()
+	r := gin.New()
+	r.Use(gin.Logger())
+	r.Use(observability.Middleware())
+	r.Use(gin.Recovery())
 
 	r.Use(func(c *gin.Context) {
 		c.Header("Access-Control-Allow-Origin", allowedOrigin)

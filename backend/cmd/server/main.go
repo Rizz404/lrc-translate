@@ -3,6 +3,7 @@ package main
 
 import (
 	"log"
+	"os"
 
 	"github.com/joho/godotenv"
 
@@ -13,6 +14,7 @@ import (
 	"lrc-translate/backend/internal/libretranslate"
 	"lrc-translate/backend/internal/localllm"
 	"lrc-translate/backend/internal/lrclib"
+	"lrc-translate/backend/internal/observability"
 	"lrc-translate/backend/internal/romanize"
 )
 
@@ -124,6 +126,10 @@ func main() {
 
 	server := httpapi.NewServer(gdb, lrclibClient, translator, resolvedProvider, resolvedIsLLM, resolvedModel, romanizer)
 	router := httpapi.NewRouter(server, cfg.AllowedOrigin, cfg.StaticDir)
+
+	if err := observability.Start(os.Getenv("METRICS_ADDR")); err != nil {
+		log.Fatalf("metrics startup failed: %v", err)
+	}
 
 	log.Printf("listening on :%s (db driver=%s)", cfg.Port, cfg.DBDriver)
 	if err := router.Run(":" + cfg.Port); err != nil {
