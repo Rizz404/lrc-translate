@@ -1,0 +1,19 @@
+services:
+  app:
+    image: "${APP_IMAGE:?APP_IMAGE is required}"
+    restart: unless-stopped
+
+    ports:
+      - "127.0.0.1:${APP_PORT:-18081}:8080"
+
+    env_file:
+      - "${APP_ENV_FILE:?APP_ENV_FILE is required}"
+
+    volumes:
+      - app-data:/app/data
+
+    security_opt:
+      - no-new-privileges:true
+
+volumes:
+  app-data:

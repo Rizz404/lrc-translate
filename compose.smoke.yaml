@@ -1,0 +1,6 @@
+services:
+  app:
+    restart: "no"
+    mem_limit: 512m
+    cpus: 0.5
+    pids_limit: 128
