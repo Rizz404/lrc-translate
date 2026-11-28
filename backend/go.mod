@@ -8,7 +8,7 @@ require (
 	github.com/glebarez/sqlite v1.11.0
 	github.com/gojp/kana v0.1.0
 	github.com/google/uuid v1.6.0
-	github.com/ikawaha/kagome-dict/ipa v1.2.6
+	github.com/ikawaha/kagome-dict/ipa v1.2.7
 	github.com/ikawaha/kagome/v2 v2.11.0
 	github.com/joho/godotenv v1.5.1
 	github.com/prometheus/client_golang v1.25.0
@@ -33,7 +33,7 @@ require (
 	github.com/go-playground/validator/v10 v10.30.1 // indirect
 	github.com/goccy/go-json v0.10.5 // indirect
 	github.com/goccy/go-yaml v1.19.2 // indirect
-	github.com/ikawaha/kagome-dict v1.1.7 // indirect
+	github.com/ikawaha/kagome-dict v1.1.8 // indirect
 	github.com/jinzhu/inflection v1.0.0 // indirect
 	github.com/jinzhu/now v1.1.5 // indirect
 	github.com/json-iterator/go v1.1.12 // indirect
